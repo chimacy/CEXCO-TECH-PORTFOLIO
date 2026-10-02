@@ -4,10 +4,12 @@ import { Menu, MessageCircle, X } from 'lucide-react'
 import { useSettings } from '@/lib/settings'
 import { cn, whatsappLink } from '@/utils/format'
 import { Spinner } from '@/components/ui'
+import NotFound from '@/pages/NotFound'
+import { isPageDisabled, isPathDisabled } from '@/utils/pages'
 
 const NAV = [
-  { to: '/portfolio', label: 'Portfolio' }, { to: '/services', label: 'Services' }, { to: '/pricing', label: 'Pricing' },
-  { to: '/about', label: 'About' }, { to: '/contact', label: 'Contact' },
+  { to: '/portfolio', label: 'Portfolio', page: 'portfolio' }, { to: '/services', label: 'Services', page: 'services' }, { to: '/pricing', label: 'Pricing', page: 'pricing' },
+  { to: '/about', label: 'About', page: 'about' }, { to: '/contact', label: 'Contact', page: 'contact' },
 ]
 
 export function Brand({ light }: { light?: boolean }) {
@@ -36,6 +38,9 @@ export default function PublicLayout() {
       </main>
     )
   }
+  const off = settings?.disabled_pages
+  const nav = NAV.filter((n) => !isPageDisabled(off, n.page))
+  const gated = isPathDisabled(off, pathname)
   const wa = whatsappLink(settings?.whatsapp, settings?.default_contact_message ?? undefined)
   const socials = Object.entries(settings?.social_links ?? {}).filter(([, v]) => v)
 
@@ -46,7 +51,7 @@ export default function PublicLayout() {
         <div className="container-x flex h-16 items-center justify-between">
           <Brand />
           <nav aria-label="Main" className="hidden items-center gap-7 text-sm md:flex">
-            {NAV.map((n) => (
+            {nav.map((n) => (
               <NavLink key={n.to} to={n.to} className={({ isActive }) => cn('transition hover:text-accent', isActive && 'font-semibold')}>{n.label}</NavLink>
             ))}
             <Link to="/request" className="btn btn-primary">Start a project</Link>
@@ -59,7 +64,7 @@ export default function PublicLayout() {
         <div className="fixed inset-0 z-50 flex flex-col bg-paper px-6 py-5 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="flex items-center justify-between"><Brand /><button onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-6 w-6" /></button></div>
           <nav className="mt-10 flex flex-col gap-5 font-display text-3xl font-semibold">
-            {NAV.map((n) => <Link key={n.to} to={n.to}>{n.label}</Link>)}
+            {nav.map((n) => <Link key={n.to} to={n.to}>{n.label}</Link>)}
           </nav>
           <Link to="/request" className="btn btn-accent mt-auto !py-4 text-base">Start a project</Link>
         </div>
@@ -67,7 +72,7 @@ export default function PublicLayout() {
 
       <main id="main" className="flex-1">
         {error && <div role="alert" className="bg-amber-50 px-4 py-2 text-center text-sm text-amber-800">Some site information could not be loaded.</div>}
-        <Outlet />
+        {gated ? <NotFound /> : <Outlet />}
       </main>
 
       <footer className="mt-24 bg-ink text-white">
@@ -77,7 +82,7 @@ export default function PublicLayout() {
             <p className="mt-4 max-w-xs text-sm text-white/60">{settings?.footer_text ?? settings?.short_description}</p>
           </div>
           <nav aria-label="Footer" className="grid grid-cols-2 gap-2 text-sm text-white/70">
-            {[...NAV, { to: '/request', label: 'Request a design' }, { to: '/privacy', label: 'Privacy' }, { to: '/terms', label: 'Terms' }].map((n) => (
+            {[...nav, { to: '/request', label: 'Request a design' }, { to: '/privacy', label: 'Privacy' }, { to: '/terms', label: 'Terms' }].map((n) => (
               <Link key={n.to} to={n.to} className="hover:text-white">{n.label}</Link>
             ))}
           </nav>
