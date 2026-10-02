@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowDown, ArrowUp, Loader2, Pencil } from 'lucide-react'
 import { ErrorState, Field, Modal, Spinner, Switch, Badge } from '@/components/ui'
 import { ImageField } from '@/components/admin/MediaPicker'
+import { PageVisibility } from '@/components/admin/PageVisibility'
 import { RichEditor } from '@/components/admin/RichEditor'
 import { useAsync } from '@/hooks/useAsync'
 import { listRows, saveRow, type Row } from '@/services/admin'
@@ -27,7 +28,9 @@ export function HomepageManager() {
   if (loading) return <Spinner />
   if (error) return <ErrorState message="Unable to load homepage sections." onRetry={reload} />
   return (
-    <div><h1 className="mb-2 font-display text-2xl font-bold sm:text-3xl">Homepage</h1><p className="mb-6 text-sm text-black/55">Show, hide, reorder and edit every homepage section.</p>
+    <div><h1 className="mb-2 font-display text-2xl font-bold sm:text-3xl">Homepage</h1>
+<p className="mb-6 text-sm text-black/55">Show, hide, reorder and edit every homepage section.</p>
+<PageVisibility />
       <ul className="space-y-3">{data?.map((r, i) => (
         <li key={r.id} className="card flex flex-wrap items-center gap-3 p-4">
           <div className="flex flex-col"><button aria-label="Move up" disabled={i === 0} onClick={() => void move(i, -1)} className="disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button aria-label="Move down" disabled={i === (data.length - 1)} onClick={() => void move(i, 1)} className="disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></div>
