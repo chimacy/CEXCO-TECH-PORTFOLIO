@@ -1,111 +1,97 @@
-import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Menu, MessageCircle, X } from 'lucide-react'
+import { useEffect } from 'react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useSettings } from '@/lib/settings'
 import { cn, whatsappLink } from '@/utils/format'
 import { Spinner } from '@/components/ui'
-import NotFound from '@/pages/NotFound'
-import { isPageDisabled, isPathDisabled } from '@/utils/pages'
 
-const NAV = [
-  { to: '/portfolio', label: 'Portfolio', page: 'portfolio' }, { to: '/services', label: 'Services', page: 'services' }, { to: '/pricing', label: 'Pricing', page: 'pricing' },
-  { to: '/about', label: 'About', page: 'about' }, { to: '/contact', label: 'Contact', page: 'contact' },
-]
-
-export function Brand({ light }: { light?: boolean }) {
+export function Brand({ className }: { className?: string }) {
   const { settings } = useSettings()
   return (
-    <Link to="/" className={cn('flex items-center gap-2 font-display text-lg font-bold tracking-tight', light && 'text-white')}>
-      {settings?.logo_url && <img src={settings.logo_url} alt="" className="h-8 w-auto" />}
-      <span>{settings?.brand_name ?? ''}</span>
+    <Link to="/" className={cn('flex min-w-0 items-center gap-2.5', className)}>
+      {settings?.logo_url && <img src={settings.logo_url} alt="" className="h-6 w-auto shrink-0 sm:h-7" />}
+      <span className="truncate font-display text-[13px] font-semibold uppercase tracking-[.12em] sm:text-[15px] sm:tracking-[.16em]">{settings?.brand_name ?? ''}</span>
     </Link>
   )
 }
 
 export default function PublicLayout() {
   const { settings, loading, error } = useSettings()
-  const [open, setOpen] = useState(false)
-  const { pathname } = useLocation()
-  useEffect(() => { setOpen(false); window.scrollTo(0, 0) }, [pathname])
+  const { pathname, hash } = useLocation()
+
+  // Scroll to top on page change, or to the #section when the link has one
+  useEffect(() => {
+    if (hash) {
+      const t = window.setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }), 80)
+      return () => window.clearTimeout(t)
+    }
+    window.scrollTo(0, 0)
+  }, [pathname, hash])
 
   if (loading) return <Spinner label="Loading…" className="min-h-screen" />
   if (settings?.maintenance_mode) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <h1 className="font-display text-4xl font-bold">{settings.brand_name}</h1>
+        <h1 className="font-display text-4xl font-medium">{settings.brand_name}</h1>
         <p className="mt-3 max-w-md text-black/60">We are making some improvements and will be back shortly.</p>
         <Link to="/admin" className="mt-8 text-xs text-black/30 hover:text-black/60">Admin</Link>
       </main>
     )
   }
-  const off = settings?.disabled_pages
-  const nav = NAV.filter((n) => !isPageDisabled(off, n.page))
-  const gated = isPathDisabled(off, pathname)
+
   const wa = whatsappLink(settings?.whatsapp, settings?.default_contact_message ?? undefined)
   const socials = Object.entries(settings?.social_links ?? {}).filter(([, v]) => v)
+  const contacts: { label: string; href: string; text: string }[] = [
+    ...(settings?.email ? [{ label: 'Email', href: `mailto:${settings.email}`, text: settings.email }] : []),
+    ...(wa ? [{ label: 'WhatsApp', href: wa, text: settings?.whatsapp ?? 'Message' }] : []),
+    ...(settings?.phone ? [{ label: 'Phone', href: `tel:${settings.phone}`, text: settings.phone }] : []),
+  ]
+  const hasContact = contacts.length > 0 || socials.length > 0
 
   return (
     <div className="flex min-h-screen flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2">Skip to content</a>
-      <header className="sticky top-0 z-40 border-b border-black/5 bg-paper/85 backdrop-blur">
-        <div className="container-x flex h-16 items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-black/10 bg-paper/90 backdrop-blur">
+        <div className="container-x flex h-14 items-center justify-between gap-4 sm:h-16">
           <Brand />
-          <nav aria-label="Main" className="hidden items-center gap-7 text-sm md:flex">
-            {nav.map((n) => (
-              <NavLink key={n.to} to={n.to} className={({ isActive }) => cn('transition hover:text-accent', isActive && 'font-semibold')}>{n.label}</NavLink>
-            ))}
-            <Link to="/request" className="btn btn-primary">Start a project</Link>
+          <nav aria-label="Main" className="flex shrink-0 items-center gap-5 text-[13px] sm:gap-8 sm:text-sm">
+            <Link to="/#work" className="transition hover:text-accent">Work</Link>
+            {hasContact && <a href="#contact" className="transition hover:text-accent">Contact</a>}
           </nav>
-          <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-6 w-6" /></button>
         </div>
       </header>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-paper px-6 py-5 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <div className="flex items-center justify-between"><Brand /><button onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-6 w-6" /></button></div>
-          <nav className="mt-10 flex flex-col gap-5 font-display text-3xl font-semibold">
-            {nav.map((n) => <Link key={n.to} to={n.to}>{n.label}</Link>)}
-          </nav>
-          <Link to="/request" className="btn btn-accent mt-auto !py-4 text-base">Start a project</Link>
-        </div>
-      )}
-
       <main id="main" className="flex-1">
         {error && <div role="alert" className="bg-amber-50 px-4 py-2 text-center text-sm text-amber-800">Some site information could not be loaded.</div>}
-        {gated ? <NotFound /> : <Outlet />}
+        <Outlet />
       </main>
 
-      <footer className="mt-24 bg-ink text-white">
-        <div className="container-x grid gap-10 py-14 md:grid-cols-3">
+      <footer id="contact" className="mt-20 scroll-mt-16 border-t border-black/10 sm:mt-28">
+        <div className="container-x grid gap-10 py-12 sm:py-16 md:grid-cols-[1.3fr_1fr]">
           <div>
-            <Brand light />
-            <p className="mt-4 max-w-xs text-sm text-white/60">{settings?.footer_text ?? settings?.short_description}</p>
+            <p className="font-display text-2xl font-medium leading-tight tracking-[-0.01em] sm:text-3xl">{settings?.brand_name}</p>
+            {(settings?.footer_text ?? settings?.short_description) && <p className="mt-3 max-w-sm text-sm leading-relaxed text-black/55">{settings?.footer_text ?? settings?.short_description}</p>}
           </div>
-          <nav aria-label="Footer" className="grid grid-cols-2 gap-2 text-sm text-white/70">
-            {[...nav, { to: '/request', label: 'Request a design' }, { to: '/privacy', label: 'Privacy' }, { to: '/terms', label: 'Terms' }].map((n) => (
-              <Link key={n.to} to={n.to} className="hover:text-white">{n.label}</Link>
-            ))}
-          </nav>
-          <div className="space-y-2 text-sm text-white/70">
-            {settings?.email && <a className="block hover:text-white" href={`mailto:${settings.email}`}>{settings.email}</a>}
-            {settings?.phone && <a className="block hover:text-white" href={`tel:${settings.phone}`}>{settings.phone}</a>}
-            {settings?.address && <p>{settings.address}</p>}
-            {socials.length > 0 && (
-              <p className="flex flex-wrap gap-x-4 pt-2">
-                {socials.map(([k, v]) => <a key={k} href={v} target="_blank" rel="noopener noreferrer" className="capitalize hover:text-white">{k}</a>)}
-              </p>
-            )}
-          </div>
+          {hasContact && (
+            <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-8 gap-y-3 text-sm">
+              {contacts.map((c) => (
+                <div key={c.label} className="contents">
+                  <dt className="text-[11px] uppercase tracking-[.18em] text-black/45">{c.label}</dt>
+                  <dd className="min-w-0 break-words"><a href={c.href} target={c.label === 'WhatsApp' ? '_blank' : undefined} rel="noopener noreferrer" className="transition hover:text-accent">{c.text}</a></dd>
+                </div>
+              ))}
+              {socials.length > 0 && (
+                <div className="contents">
+                  <dt className="text-[11px] uppercase tracking-[.18em] text-black/45">Follow</dt>
+                  <dd className="flex flex-wrap gap-x-4 gap-y-1">{socials.map(([k, v]) => <a key={k} href={v} target="_blank" rel="noopener noreferrer" className="capitalize transition hover:text-accent">{k}</a>)}</dd>
+                </div>
+              )}
+            </dl>
+          )}
         </div>
-        <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">{settings?.copyright_text}</div>
+        <div className="border-t border-black/10">
+          <p className="container-x py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[11px] tracking-wide text-black/40">{settings?.copyright_text}</p>
+        </div>
       </footer>
-
-      {wa && (
-        <a href={wa} target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp"
-          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-105">
-          <MessageCircle className="h-5 w-5" /><span className="hidden sm:inline">Chat on WhatsApp</span>
-        </a>
-      )}
     </div>
   )
 }
