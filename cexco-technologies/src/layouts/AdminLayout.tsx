@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
-import { Loader2, BarChart3, Briefcase, FolderTree, Home, Image as ImageIcon, LayoutDashboard, LogOut, Menu, MessageSquare, Plus, Quote, Settings, Tag, Users, X, FileText, Inbox, ListChecks } from 'lucide-react'
+import { Loader2, FolderTree, Home, Image as ImageIcon, ImagePlus, LayoutDashboard, LogOut, Menu, Plus, Settings, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useSettings } from '@/lib/settings'
 import { Modal, Spinner } from '@/components/ui'
@@ -11,17 +11,10 @@ const GROUPS: { title?: string; items: Item[] }[] = [
   { items: [{ to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
   { title: 'Portfolio', items: [
     { to: '/admin/portfolio', label: 'All Designs', icon: ImageIcon, end: true }, { to: '/admin/portfolio/new', label: 'Add Design', icon: Plus },
-    { to: '/admin/categories', label: 'Categories', icon: FolderTree } ] },
-  { title: 'Services', items: [
-    { to: '/admin/services', label: 'All Services', icon: Briefcase, end: true }, { to: '/admin/services?new=1', label: 'Add Service', icon: Plus }] },
-  { items: [
-    { to: '/admin/pricing', label: 'Pricing', icon: Tag }, { to: '/admin/requests', label: 'Requests', icon: Inbox },
-    { to: '/admin/clients', label: 'Clients', icon: Users }, { to: '/admin/messages', label: 'Messages', icon: MessageSquare },
-    { to: '/admin/testimonials', label: 'Testimonials', icon: Quote }] },
+    { to: '/admin/categories', label: 'Categories', icon: FolderTree }] },
   { title: 'Site', items: [
-    { to: '/admin/homepage', label: 'Homepage', icon: Home, superOnly: true }, { to: '/admin/pages', label: 'Pages', icon: FileText, superOnly: true },
-    { to: '/admin/extras', label: 'Stats & Process', icon: ListChecks, superOnly: true },
-    { to: '/admin/media', label: 'Media Library', icon: BarChart3 }, { to: '/admin/settings', label: 'Settings', icon: Settings, superOnly: true }] },
+    { to: '/admin/homepage', label: 'Home page', icon: Home, superOnly: true },
+    { to: '/admin/media', label: 'Media Library', icon: ImagePlus }, { to: '/admin/settings', label: 'Settings', icon: Settings, superOnly: true }] },
 ]
 
 export default function AdminLayout() {
