@@ -7,6 +7,7 @@ import * as api from '@/services/api'
 import { EmptyState, ErrorState, Img, Spinner } from '@/components/ui'
 import { ProjectCard } from '@/components/ProjectCard'
 import { formatPrice, whatsappLink } from '@/utils/format'
+import { isSectionDisabled } from '@/utils/pages'
 import type { HomepageSection } from '@/types'
 
 const cfg = (s: HomepageSection) => ({
@@ -209,9 +210,11 @@ const RENDERERS: Record<string, (p: { s: HomepageSection }) => JSX.Element | nul
 
 export default function Home() {
   useSeo({})
+  const { settings } = useSettings()
   const { data, loading, error, reload } = useAsync(api.getSections, [])
   if (loading) return <Spinner className="min-h-[60vh]" />
   if (error) return <div className="container-x py-20"><ErrorState message="Unable to load the page. Please try again." onRetry={reload} /></div>
-  if (!data?.length) return <div className="container-x py-20"><EmptyState title="Nothing to show yet" hint="Homepage sections can be configured in the admin panel." /></div>
-  return <>{data.map((s) => { const R = RENDERERS[s.key]; return R ? <R key={s.id} s={s} /> : null })}</>
+  const visible = (data ?? []).filter((s) => s.is_visible && !isSectionDisabled(settings?.disabled_pages, s.key))
+  if (!visible.length) return <div className="container-x py-20"><EmptyState title="Nothing to show yet" hint="Homepage sections can be configured in the admin panel." /></div>
+  return <>{visible.map((s) => { const R = RENDERERS[s.key]; return R ? <R key={s.id} s={s} /> : null })}</>
 }
