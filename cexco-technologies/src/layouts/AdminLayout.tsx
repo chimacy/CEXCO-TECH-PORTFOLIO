@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, Briefcase, FolderTree, Home, Image as ImageIcon, LayoutDashboard, LogOut, Mail, Menu, MessageSquare, Plus, Quote, Settings, Tag, Users, X, FileText, Inbox, ListChecks } from 'lucide-react'
+import { Loader2, BarChart3, Briefcase, FolderTree, Home, Image as ImageIcon, LayoutDashboard, LogOut, Menu, MessageSquare, Plus, Quote, Settings, Tag, Users, X, FileText, Inbox, ListChecks } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useSettings } from '@/lib/settings'
-import { Spinner } from '@/components/ui'
+import { Modal, Spinner } from '@/components/ui'
 import { cn } from '@/utils/format'
 
 interface Item { to: string; label: string; icon: typeof Home; end?: boolean; superOnly?: boolean }
@@ -28,6 +28,8 @@ export default function AdminLayout() {
   const { session, role, loading, signOut, isSuperAdmin } = useAuth()
   const { settings } = useSettings()
   const [open, setOpen] = useState(false)
+  const [confirmOut, setConfirmOut] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const loc = useLocation()
   useEffect(() => setOpen(false), [loc.pathname, loc.search])
   useEffect(() => { document.title = `Admin | ${settings?.brand_name ?? ''}` }, [settings?.brand_name])
@@ -41,6 +43,11 @@ export default function AdminLayout() {
       <button className="btn btn-primary mt-6" onClick={() => void signOut()}>Sign out</button>
     </main>
   )
+
+  const doSignOut = async () => {
+    setSigningOut(true)
+    try { await signOut() } finally { setSigningOut(false); setConfirmOut(false) }
+  }
 
   const nav = (
     <nav aria-label="Admin" className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
@@ -63,7 +70,7 @@ export default function AdminLayout() {
       <div className="border-t border-white/10 p-3 text-xs">
         <p className="truncate px-3 text-white/50">{session.user.email} · {role}</p>
         <Link to="/" target="_blank" className="mt-2 block rounded-xl px-3 py-2 text-white/70 hover:bg-white/10">View site ↗</Link>
-        <button onClick={() => void signOut()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-white/70 hover:bg-white/10"><LogOut className="h-4 w-4" /> Logout</button>
+        <button onClick={() => { setOpen(false); setConfirmOut(true) }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-white/70 hover:bg-white/10"><LogOut className="h-4 w-4" /> Logout</button>
       </div>
     </div>
   )
@@ -75,9 +82,15 @@ export default function AdminLayout() {
         <button onClick={() => setOpen(true)} aria-label="Open navigation"><Menu className="h-6 w-6" /></button>
         <span className="font-display font-semibold">{settings?.brand_name}</span>
         {open && <button className="ml-auto" onClick={() => setOpen(false)} aria-label="Close"><X className="h-5 w-5" /></button>}
-        <Mail className="hidden" />
       </header>
       <main className="mx-auto max-w-6xl p-4 sm:p-8"><Outlet /></main>
+      <Modal open={confirmOut} onClose={() => !signingOut && setConfirmOut(false)} title="Sign out?"
+        footer={<>
+          <button className="btn btn-ghost" onClick={() => setConfirmOut(false)} disabled={signingOut}>Stay signed in</button>
+          <button className="btn btn-primary" onClick={() => void doSignOut()} disabled={signingOut}>{signingOut && <Loader2 className="h-4 w-4 animate-spin" />}Sign out</button>
+        </>}>
+        <p className="text-sm text-black/70">You will need to sign in again to manage {settings?.brand_name ?? 'the site'}.</p>
+      </Modal>
     </div>
   )
 }
