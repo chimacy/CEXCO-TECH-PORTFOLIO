@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, Img, Spinner } from '@/components/ui'
 import { ProjectCard } from '@/components/ProjectCard'
 import { RichText } from '@/components/ui/RichText'
 import { formatPrice } from '@/utils/format'
+import { isPageDisabled } from '@/utils/pages'
 
 export function ServicesList() {
   useSeo({ title: 'Services', description: 'Design services offered.' })
@@ -55,7 +56,7 @@ export function ServiceDetail() {
         <div className="aspect-[4/3] overflow-hidden rounded-3xl bg-black/5"><Img src={s.cover_image_url} alt={s.name} seed={s.name} eager width={1200} /></div>
       </div>
       {s.description && <div className="mt-12 max-w-3xl">{/<[a-z][\s\S]*>/i.test(s.description) ? <RichText html={s.description} /> : <p className="whitespace-pre-line leading-relaxed text-black/70">{s.description}</p>}</div>}
-      {!!pricing.data?.length && <section className="mt-16"><h2 className="mb-5 font-display text-2xl font-bold">Pricing</h2>
+     {!isPageDisabled(settings?.disabled_pages, 'pricing') && !!pricing.data?.length && <section className="mt-16"> {!!pricing.data?.length && <section className="mt-16"><h2 className="mb-5 font-display text-2xl font-bold">Pricing</h2>
         <div className="grid gap-4 md:grid-cols-3">{pricing.data.map((p) => <div key={p.id} className="card p-6"><h3 className="font-semibold">{p.title}</h3><p className="mt-2 font-display text-2xl font-bold">{formatPrice(p.price, p.price_label, p.currency)}</p>
           <ul className="mt-3 space-y-1 text-sm text-black/60">{p.features.map((f) => <li key={f}>• {f}</li>)}</ul></div>)}</div></section>}
       {!!work.data?.length && <section className="mt-16"><h2 className="mb-6 font-display text-2xl font-bold">Related work</h2>
