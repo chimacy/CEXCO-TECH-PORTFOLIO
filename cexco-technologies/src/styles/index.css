@@ -6,6 +6,33 @@
   html { scroll-behavior: smooth; }
   body { @apply bg-paper text-ink font-sans antialiased; }
   :focus-visible { @apply outline-2 outline-offset-2 outline-accent; }
+
+  /* No text cursor, caret or selection on non-interactive areas (public site and admin) */
+  body {
+    cursor: default;
+    caret-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Typing fields stay normal */
+  input, textarea, [contenteditable="true"] {
+    cursor: text;
+    caret-color: auto;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  /* Request reference number stays selectable so clients can copy it */
+  [data-testid="ref"] { -webkit-user-select: text; user-select: text; cursor: text; }
+  /* Clickable things keep the pointer */
+  a, button, summary, select, label[for], [role="button"], [role="tab"], [role="switch"],
+  input[type="checkbox"], input[type="radio"], input[type="file"], input[type="date"] { cursor: pointer; }
+  button:disabled, input:disabled { cursor: not-allowed; }
+
+  /* Hide all scrollbars (scrolling itself still works) */
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
   }
