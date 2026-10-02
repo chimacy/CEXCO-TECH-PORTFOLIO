@@ -37,6 +37,7 @@ Import the repo, framework "Vite", add the env vars above. `vercel.json` already
 - **Backups:** the Free plan has no automatic backups. Periodically export the database (Supabase → Database → Backups is Pro; use `pg_dump` or the CSV export per table) and download your media.
 
 ## Security model
+
 - RLS on every table. Public: read published content only. Public writes happen only through `SECURITY DEFINER` functions (`submit_design_request`, `add_request_file`, `submit_contact_message`, `track_event`) that validate input server-side.
 - Request uploads go to the private `request-files` bucket; anonymous upload is only allowed into the folder of a request created in the last 2 hours with a matching one-time token. Admins open files via 10-minute signed URLs. Bucket-level MIME and size limits are enforced by Storage, not just the browser.
 - Admin writes require a row in `profiles` with `SUPER_ADMIN` or `ADMIN`. Site settings, homepage, pages, stats and process steps are SUPER_ADMIN only.
