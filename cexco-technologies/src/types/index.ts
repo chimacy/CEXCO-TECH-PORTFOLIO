@@ -29,6 +29,7 @@ export interface SiteSettings {
   default_contact_message: string | null
 }
 
+
 export interface Category {
   id: string; name: string; slug: string; description: string | null; image_url: string | null
   is_published: boolean; sort_order: number; created_at: string; updated_at: string
