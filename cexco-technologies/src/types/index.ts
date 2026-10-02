@@ -29,6 +29,7 @@ export interface SiteSettings {
   default_contact_message: string | null
 }
 
+  disabled_pages: string[]
 
 export interface Category {
   id: string; name: string; slug: string; description: string | null; image_url: string | null
