@@ -4,7 +4,10 @@
 
 @layer base {
   html { scroll-behavior: smooth; }
+  html, body { overflow-x: clip; }
   body { @apply bg-paper text-ink font-sans antialiased; }
+  h1, h2, h3 { text-wrap: balance; }
+  .font-display { font-optical-sizing: auto; }
   :focus-visible { @apply outline-2 outline-offset-2 outline-accent; }
 
   /* No text cursor, caret or selection on non-interactive areas (public site and admin) */
@@ -15,16 +18,13 @@
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
-  /* Typing fields stay normal */
   input, textarea, [contenteditable="true"] {
     cursor: text;
     caret-color: auto;
     -webkit-user-select: text;
     user-select: text;
   }
-  /* Request reference number stays selectable so clients can copy it */
   [data-testid="ref"] { -webkit-user-select: text; user-select: text; cursor: text; }
-  /* Clickable things keep the pointer */
   a, button, summary, select, label[for], [role="button"], [role="tab"], [role="switch"],
   input[type="checkbox"], input[type="radio"], input[type="file"], input[type="date"] { cursor: pointer; }
   button:disabled, input:disabled { cursor: not-allowed; }
@@ -46,5 +46,13 @@
   .input { @apply w-full rounded-xl border border-black/15 bg-white px-3.5 py-2.5 text-sm placeholder:text-black/35 focus:border-ink focus:outline-none; }
   .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-black/60; }
   .card { @apply rounded-2xl border border-black/10 bg-white; }
-  .container-x { @apply mx-auto w-full max-w-7xl px-5 sm:px-8; }
-}
+
+  /* Page gutters: 16px on phones (respecting notches), 32px tablets, 48px desktops */
+  .container-x {
+    width: 100%; max-width: 1440px; margin-left: auto; margin-right: auto;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+  @media (min-width: 640px) { .container-x { padding-left: max(2rem, env(safe-area-inset-left, 0px)); padding-right: max(2rem, env(safe-area-inset-right, 0px)); } }
+  @media (min-width: 1024px) { .container-x { padding-left: 3rem; padding-right: 3rem; } }
+  }
