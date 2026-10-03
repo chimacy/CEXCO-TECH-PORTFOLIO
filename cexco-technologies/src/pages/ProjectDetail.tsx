@@ -49,7 +49,7 @@ function DesignImage({ src, alt, ratio, eager, onOpen }: { src: string; alt: str
   const [r, setR] = useState<number | undefined>(ratio)
   const [loaded, setLoaded] = useState(false)
   return (
-    <button type="button" onClick={onOpen} aria-label={`View ${alt} full size`} className="mx-auto block w-full bg-neutral-100"
+    <button type="button" onClick={onOpen} aria-label={`View ${alt} full size`} className="mx-auto block w-full overflow-hidden rounded-[28px] bg-neutral-100"
       style={{ cursor: 'zoom-in', aspectRatio: loaded ? undefined : String(r ?? 0.8), maxWidth: r ? `min(100%, calc(88vh * ${r}))` : '100%' }}>
       <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async"
         onLoad={(e) => { setLoaded(true); const { naturalWidth: w, naturalHeight: h } = e.currentTarget; if (w && h) setR(w / h) }}
