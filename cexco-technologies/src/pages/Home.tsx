@@ -4,12 +4,13 @@ import { ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { useSeo } from '@/hooks/useSeo'
 import { useSettings } from '@/lib/settings'
+import { parseRatio, useSections } from '@/lib/sections'
 import * as api from '@/services/api'
 import { Img } from '@/components/ui'
 import { WorkArchive } from '@/components/WorkArchive'
 import { WorkTile, useBreakpoint } from '@/components/WorkGrid'
 import { cn } from '@/utils/format'
-import { projectRatio, type Project } from '@/utils/project'
+import type { Project } from '@/utils/project'
 import type { HomepageSection } from '@/types'
 
 const cfg = (s: HomepageSection | undefined, k: string) => (typeof s?.config?.[k] === 'string' && s.config[k] ? (s.config[k] as string) : null)
@@ -44,8 +45,8 @@ function Hero({ hero, loading, target }: { hero?: HomepageSection; loading: bool
           </a>
         </div>
         {image && (
-          <figure className="order-first -mx-[var(--gutter)] lg:order-none lg:col-span-8 lg:mx-0 lg:-mr-[var(--gutter)]">
-            <div className="aspect-[5/4] overflow-hidden bg-neutral-100 sm:aspect-[16/10]"><Img src={image} alt="" eager width={1600} sizes="(min-width:1024px) 66vw, 100vw" /></div>
+          <figure className="order-first lg:order-none lg:col-span-8">
+            <div className="aspect-[5/4] overflow-hidden rounded-[28px] bg-neutral-100 sm:aspect-[16/10]"><Img src={image} alt="" eager width={1600} sizes="(min-width:1024px) 66vw, 100vw" /></div>
           </figure>
         )}
       </div>
@@ -53,18 +54,17 @@ function Hero({ hero, loading, target }: { hero?: HomepageSection; loading: bool
   )
 }
 
-/** Horizontal, swipeable strip of the projects marked "Featured" in the admin. */
-function SelectedWork({ items }: { items: Project[] }) {
+/** Compact, swipeable strip of the projects marked "Featured": small cards so several fit on screen before you scroll. */
+function SelectedWork({ items, ratio }: { items: Project[]; ratio: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const bp = useBreakpoint()
-  const go = (d: 1 | -1) => ref.current?.scrollBy({ left: d * ref.current.clientWidth * 0.8, behavior: 'smooth' })
-  const width = (r: number): CSSProperties =>
-    bp === 'lg' ? { width: `min(70vw, calc(62vh * ${r}))` } : bp === 'md' ? { width: `min(46vw, calc(56vh * ${r}))` } : { width: `min(${r >= 1.2 ? 84 : 78}vw, calc(60vh * ${r}))` }
+  const go = (d: 1 | -1) => ref.current?.scrollBy({ left: d * ref.current.clientWidth * 0.75, behavior: 'smooth' })
+  const width: CSSProperties = { width: bp === 'lg' ? 'clamp(190px, 16vw, 250px)' : bp === 'md' ? 'clamp(150px, 24vw, 200px)' : '40vw' }
 
   return (
     <section id="selected" className="mt-20 scroll-mt-20 sm:mt-28 lg:mt-36">
       <div className="container-x">
-        <div className="mb-8 flex items-end justify-between gap-6 sm:mb-12">
+        <div className="mb-7 flex items-end justify-between gap-6 sm:mb-10">
           <div>
             <p className="eyebrow">(01)</p>
             <h2 className="mt-3 font-display text-2xl font-medium uppercase tracking-[-0.02em] sm:text-4xl">Selected work</h2>
@@ -74,8 +74,8 @@ function SelectedWork({ items }: { items: Project[] }) {
             <button onClick={() => go(1)} aria-label="Scroll right" className="flex h-11 w-11 items-center justify-center rounded-full border border-black/15 transition hover:border-accent hover:text-accent"><ArrowRight className="h-4 w-4" /></button>
           </div>
         </div>
-        <div ref={ref} className="-mr-[var(--gutter)] flex snap-x snap-mandatory items-start gap-5 overflow-x-auto pr-[var(--gutter)] sm:gap-8">
-          {items.map((p, i) => <div key={p.id} className="shrink-0 snap-start" style={width(projectRatio(p))}><WorkTile p={p} wide priority={i < 2} /></div>)}
+        <div ref={ref} className="-mr-[var(--gutter)] flex snap-x snap-mandatory items-start gap-3.5 overflow-x-auto pr-[var(--gutter)] sm:gap-5">
+          {items.map((p, i) => <div key={p.id} className="shrink-0 snap-start" style={width}><WorkTile p={p} ratio={ratio} priority={i < 4} /></div>)}
         </div>
       </div>
     </section>
@@ -110,23 +110,24 @@ function AboutIntro() {
 
 export default function Home() {
   useSeo({})
-  const sections = useAsync(api.getSections, [])
-  const featured = useAsync(async () => (await api.getProjects({ featured: true, pageSize: 8 })).data as Project[], [])
-  const hero = sections.data?.find((s) => s.key === 'hero')
+  const sections = useSections()
+  const featured = useAsync(async () => (await api.getProjects({ featured: true, pageSize: 12 })).data as Project[], [])
+  const hero = sections?.find((s) => s.key === 'hero')
+  const ratio = parseRatio(sections?.find((s) => s.key === 'featured_work')?.config?.tile_ratio)
   const hasFeatured = !!featured.data?.length
 
   return (
     <>
-      <Hero hero={hero} loading={sections.loading} target={hasFeatured ? '#selected' : '#work'} />
-      {hasFeatured && <SelectedWork items={featured.data!} />}
+      <Hero hero={hero} loading={sections === null} target={hasFeatured ? '#selected' : '#work'} />
+      {hasFeatured && <SelectedWork items={featured.data!} ratio={ratio} />}
       <section id="work" className="container-x mt-24 scroll-mt-20 sm:mt-32 lg:mt-40">
         <div className="mb-8 sm:mb-12">
           <p className="eyebrow">{hasFeatured ? '(02)' : '(01)'}</p>
           <h2 className="mt-3 font-display text-2xl font-medium uppercase tracking-[-0.02em] sm:text-4xl">Work</h2>
         </div>
-        <WorkArchive limit={9} />
+        <WorkArchive limit={8} />
       </section>
       <AboutIntro />
     </>
   )
-                                                    }
+            }
