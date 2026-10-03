@@ -217,4 +217,13 @@ export function PortfolioEditor() {
                   <button aria-label="Move earlier" onClick={() => moveImg(i, -1)}><ArrowUp className="h-3.5 w-3.5 -rotate-90" /></button>
                   <button aria-label="Use as cover" onClick={() => set('cover_image_url', im.image_url)}><Star className={cn('h-3.5 w-3.5', f.cover_image_url === im.image_url && 'fill-amber-400 text-amber-400')} /></button>
                   <button aria-label="Move later" onClick={() => moveImg(i, 1)}><ArrowDown className="h-3.5 w-3.5 -rotate-90" /></button>
-                
+                                </div></div>))}</div>
+            <button className="btn btn-ghost mt-3 w-full" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Add images</button>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={(e) => void addImages(e.target.files)} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+    }
+    
