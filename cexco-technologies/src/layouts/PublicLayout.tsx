@@ -4,6 +4,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { useSettings } from '@/lib/settings'
 import { cn, whatsappLink } from '@/utils/format'
 import { Spinner } from '@/components/ui'
+import { WhatsAppCta } from '@/components/WhatsAppCta'
 
 export function Brand({ className }: { className?: string }) {
   const { settings } = useSettings()
@@ -67,7 +68,9 @@ export default function PublicLayout() {
         <div key={pathname} className="animate-fade"><Outlet /></div>
       </main>
 
-      <footer id="contact" className="mt-28 scroll-mt-16 border-t border-black/10 sm:mt-40">
+    <WhatsAppCta />
+
+      <footer id="contact" className="mt-20 scroll-mt-16 border-t border-black/10 sm:mt-28">
         <div className="container-x grid gap-12 py-14 sm:py-20 lg:grid-cols-12 lg:gap-x-12">
           <div className="lg:col-span-7">
             <p className="eyebrow">Let's connect</p>
