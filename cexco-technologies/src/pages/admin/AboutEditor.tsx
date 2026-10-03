@@ -12,7 +12,7 @@ interface Form { heading: string; intro: string; body: string; values: string; i
 
 export default function AboutEditor() {
   const toast = useToast()
-  const { data, loading, error, reload } = useAsync(async () => (await listRows('pages')).find((r) => r.slug === 'about') ?? null, [])
+  const { data, loading, error, reload } = useAsync(async () => ( await listRows('pages', { order: 'slug', asc: true }))
   const [f, setF] = useState<Form>({ heading: '', intro: '', body: '', values: '', image_url: null })
   const [busy, setBusy] = useState(false)
 
