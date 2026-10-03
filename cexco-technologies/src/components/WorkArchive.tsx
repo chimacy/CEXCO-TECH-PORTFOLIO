@@ -6,14 +6,16 @@ import { useSettings } from '@/lib/settings'
 import { supabase } from '@/lib/supabase'
 import * as api from '@/services/api'
 import { EmptyState, ErrorState } from '@/components/ui'
-import { EditorialGrid } from '@/components/WorkGrid'
+import { CatalogGrid } from '@/components/WorkGrid'
+import { useTileRatio } from '@/lib/sections'
 import { cn } from '@/utils/format'
 import type { Project } from '@/utils/project'
 import type { Category } from '@/types'
 
-/** Category filter + editorial grid. `limit` shows just the first projects (used on the home page). */
+/** Category filter + catalog grid. `limit` shows just the first projects (used on the home page). */
 export function WorkArchive({ limit }: { limit?: number }) {
   const { settings } = useSettings()
+  const ratio = useTileRatio()
   const [sp, setSp] = useSearchParams()
   const cats = useAsync<Category[]>(async () => {
     const [all, used] = await Promise.all([api.getCategories(), supabase.from('portfolio_projects').select('category_id').eq('status', 'published').limit(2000)])
@@ -72,12 +74,12 @@ export function WorkArchive({ limit }: { limit?: number }) {
 
       <div className="pt-10 sm:pt-14 lg:pt-20" aria-live="polite">
         {state === 'loading' || waiting ? (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, i) => <div key={i} className="aspect-[4/5] animate-pulse bg-neutral-100" />)}</div>
+          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <div key={i} className="animate-pulse rounded-[28px] bg-neutral-100" style={{ aspectRatio: String(ratio) }} />)}</div>
         ) : state === 'error' ? <ErrorState message="Unable to load projects. Please try again." onRetry={() => void load(1, true)} />
         : !items.length ? <EmptyState title="No projects yet." hint={active ? 'Nothing is published in this category yet.' : 'Projects will appear here once published.'} />
         : (
           <div key={active?.slug ?? 'all'} className="animate-fade">
-            <EditorialGrid items={items} />
+            <CatalogGrid items={items} ratio={ratio} />
             {limit ? (
               total > items.length && (
                 <div className="mt-16 flex justify-center sm:mt-24">
@@ -99,4 +101,4 @@ export function WorkArchive({ limit }: { limit?: number }) {
       </div>
     </div>
   )
-}
+  }
