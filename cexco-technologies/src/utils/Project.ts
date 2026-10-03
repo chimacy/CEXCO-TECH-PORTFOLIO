@@ -9,4 +9,4 @@ export const projectYear = (p: Project): number => p.year ?? new Date(p.created_
 export const projectRatio = (p: Project): number => {
   const r = Number(p.cover_ratio)
   return r > 0.2 && r < 5 ? r : 0.8
-}
+  }
