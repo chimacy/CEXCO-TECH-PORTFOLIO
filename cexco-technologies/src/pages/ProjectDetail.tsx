@@ -1,108 +1,158 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { useSeo } from '@/hooks/useSeo'
 import * as api from '@/services/api'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/lib/toast'
 import { EmptyState, ErrorState, PlaceholderArt, Spinner } from '@/components/ui'
-import { WorkCard } from '@/components/WorkCard'
-import { ShareButtons } from '@/components/ui/Share'
 import { RichText } from '@/components/ui/RichText'
-import type { PortfolioProject } from '@/types'
+import { projectRatio, projectYear, type Project } from '@/utils/project'
+import { transformUrl } from '@/utils/image'
 
 function Lightbox({ images, index, alt, onClose, onIndex }: { images: string[]; index: number; alt: string; onClose: () => void; onIndex: (i: number) => void }) {
+  const touch = useRef<number | null>(null)
+  const n = images.length
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowRight') onIndex((index + 1) % images.length)
-      if (e.key === 'ArrowLeft') onIndex((index - 1 + images.length) % images.length)
+      if (e.key === 'ArrowRight') onIndex((index + 1) % n)
+      if (e.key === 'ArrowLeft') onIndex((index - 1 + n) % n)
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
-  }, [index, images.length, onClose, onIndex])
-  const many = images.length > 1
+  }, [index, n, onClose, onIndex])
+  const swipe = (x: number) => {
+    if (touch.current === null || n < 2) return
+    const dx = x - touch.current; touch.current = null
+    if (Math.abs(dx) > 50) onIndex(dx < 0 ? (index + 1) % n : (index - 1 + n) % n)
+  }
+  const btn = 'absolute rounded-full bg-white/10 p-3 text-white transition hover:bg-white/25'
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/95" role="dialog" aria-modal="true" aria-label={`${alt} — full size`} onClick={onClose}>
-      <img src={images[index]} alt={`${alt} ${index + 1}`} className="max-h-[92vh] max-w-[96vw] object-contain" onClick={(e) => e.stopPropagation()} />
-      <button onClick={onClose} aria-label="Close" className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"><X className="h-5 w-5" /></button>
-      {many && <>
-        <button onClick={(e) => { e.stopPropagation(); onIndex((index - 1 + images.length) % images.length) }} aria-label="Previous image" className="absolute left-2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:left-5"><ChevronLeft className="h-5 w-5" /></button>
-        <button onClick={(e) => { e.stopPropagation(); onIndex((index + 1) % images.length) }} aria-label="Next image" className="absolute right-2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:right-5"><ChevronRight className="h-5 w-5" /></button>
-        <p className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] text-xs tracking-widest text-white/60">{index + 1} / {images.length}</p>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-white/95 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`${alt} — full size`} onClick={onClose}
+      onTouchStart={(e) => { touch.current = e.touches[0].clientX }} onTouchEnd={(e) => swipe(e.changedTouches[0].clientX)}>
+      <img src={images[index]} alt={`${alt} ${index + 1}`} className="max-h-[92vh] max-w-[94vw] object-contain shadow-[0_20px_60px_-20px_rgba(0,0,0,.35)]" onClick={(e) => e.stopPropagation()} />
+      <button onClick={onClose} aria-label="Close" className={`${btn} right-4 top-[max(1rem,env(safe-area-inset-top))] !bg-ink`}><X className="h-5 w-5" /></button>
+      {n > 1 && <>
+        <button onClick={(e) => { e.stopPropagation(); onIndex((index - 1 + n) % n) }} aria-label="Previous image" className={`${btn} left-3 !bg-ink sm:left-6`}><ChevronLeft className="h-5 w-5" /></button>
+        <button onClick={(e) => { e.stopPropagation(); onIndex((index + 1) % n) }} aria-label="Next image" className={`${btn} right-3 !bg-ink sm:right-6`}><ChevronRight className="h-5 w-5" /></button>
+        <p className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] text-[11px] tracking-[.2em] text-black/50">{index + 1} / {n}</p>
       </>}
     </div>
   )
 }
 
-function DesignImage({ src, alt, eager, onOpen }: { src: string; alt: string; eager: boolean; onOpen: () => void }) {
+/** One design, shown whole: portrait work stays tall (never taller than the screen), landscape work runs wide. */
+function DesignImage({ src, alt, ratio, eager, onOpen }: { src: string; alt: string; ratio?: number; eager: boolean; onOpen: () => void }) {
+  const [r, setR] = useState<number | undefined>(ratio)
   const [loaded, setLoaded] = useState(false)
   return (
-    <button type="button" onClick={onOpen} aria-label={`View ${alt} full size`} className={`block w-full overflow-hidden rounded-md bg-[#e8e5de] ${loaded ? '' : 'aspect-[4/5]'}`} style={{ cursor: 'zoom-in' }}>
-      <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" onLoad={() => setLoaded(true)} className={`block h-auto w-full transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`} />
+    <button type="button" onClick={onOpen} aria-label={`View ${alt} full size`} className="mx-auto block w-full bg-neutral-100"
+      style={{ cursor: 'zoom-in', aspectRatio: loaded ? undefined : String(r ?? 0.8), maxWidth: r ? `min(100%, calc(88vh * ${r}))` : '100%' }}>
+      <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async"
+        onLoad={(e) => { setLoaded(true); const { naturalWidth: w, naturalHeight: h } = e.currentTarget; if (w && h) setR(w / h) }}
+        className={`block h-auto w-full transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`} />
     </button>
   )
 }
 
+interface Neighbour { slug: string; title: string; cover_image_url: string | null }
+
 export default function ProjectDetail({ preview }: { preview?: boolean }) {
   const { slug = '' } = useParams()
   const [sp] = useSearchParams()
+  const toast = useToast()
   const [lightbox, setLightbox] = useState<number | null>(null)
-  const { data: p, loading, error, reload } = useAsync<PortfolioProject | null>(async () => {
+
+  const { data: p, loading, error, reload } = useAsync<Project | null>(async () => {
     if (preview) { // admin-only: RLS lets signed-in admins read drafts
-      const res = await supabase.from('portfolio_projects').select('*, category:categories(id,name,slug), service:services(id,name,slug), images:portfolio_images(*)').eq('slug', slug).maybeSingle()
+      const res = await supabase.from('portfolio_projects').select('*, category:categories(id,name,slug), images:portfolio_images(*)').eq('slug', slug).maybeSingle()
       if (res.error) throw new Error(res.error.message)
-      const d = res.data as PortfolioProject | null
+      const d = res.data as Project | null
       d?.images?.sort((a, b) => a.sort_order - b.sort_order)
       return d
     }
-    return api.getProject(slug)
+    return (await api.getProject(slug)) as Project | null
   }, [slug, preview])
-  const related = useAsync(async () => (p && !preview ? api.getRelatedProjects(p, 4) : []), [p?.id])
+
+  const nav = useAsync<{ prev: Neighbour | null; next: Neighbour | null }>(async () => {
+    if (!p || preview) return { prev: null, next: null }
+    const { data } = await supabase.from('portfolio_projects').select('slug,title,cover_image_url').eq('status', 'published').order('sort_order').order('created_at', { ascending: false }).limit(500)
+    const list = (data ?? []) as Neighbour[]
+    const i = list.findIndex((x) => x.slug === p.slug)
+    return { prev: i > 0 ? list[i - 1] : null, next: i >= 0 && i < list.length - 1 ? list[i + 1] : null }
+  }, [p?.id])
 
   useEffect(() => { if (p && !preview) api.trackEvent('project_view', p.id) }, [p?.id, preview]) // eslint-disable-line react-hooks/exhaustive-deps
-  useSeo({ title: p?.title, description: p?.short_description ?? p?.description?.slice(0, 160), image: p?.cover_image_url, type: 'article', path: `/portfolio/${slug}`, noindex: preview })
+  useSeo({ title: p?.title, description: p?.short_description ?? p?.description?.slice(0, 160), image: p?.cover_image_url, type: 'article', path: `/work/${slug}`, noindex: preview })
 
   if (loading) return <Spinner className="min-h-[60vh]" />
   if (error) return <div className="container-x py-20"><ErrorState message="Unable to load this project." onRetry={reload} /></div>
-  if (!p) return <div className="container-x py-24"><EmptyState title="Project not found" action={<Link to="/" className="btn btn-primary">Back to work</Link>} /></div>
+  if (!p) return <div className="container-x py-24"><EmptyState title="Project not found" action={<Link to="/work" className="btn btn-primary">Back to all work</Link>} /></div>
 
   const images = Array.from(new Set([p.cover_image_url, ...(p.images ?? []).map((i) => i.image_url)].filter((x): x is string => !!x)))
-  const meta = [p.client_name, p.client_type, new Date(p.created_at).getFullYear().toString()].filter(Boolean) as string[]
-  const url = `${window.location.origin}/portfolio/${p.slug}`
+  const url = `${window.location.origin}/work/${p.slug}`
+  const info = [['Category', p.category?.name], ['Year', String(projectYear(p))], ['Client', p.client_name], ['Type', p.client_type]].filter(([, v]) => !!v) as [string, string][]
+  const copy = async () => { try { await navigator.clipboard.writeText(url); toast.success('Link copied.') } catch { toast.error('Could not copy the link.') } }
+  const enc = encodeURIComponent
+  const shares = [
+    { n: 'WhatsApp', h: `https://wa.me/?text=${enc(`${p.title} ${url}`)}` }, { n: 'X', h: `https://twitter.com/intent/tweet?text=${enc(p.title)}&url=${enc(url)}` },
+    { n: 'Facebook', h: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}` }, { n: 'LinkedIn', h: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}` },
+  ]
 
   return (
     <div className="pb-4">
       <div className="container-x pt-6 sm:pt-10">
-        {preview && <div className="mb-6 rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900">Preview — status: <b>{p.status}</b>. {sp.get('from') && <Link className="underline" to={sp.get('from')!}>Back to editor</Link>}</div>}
-        <Link to="/#work" className="inline-flex items-center gap-2 text-[13px] text-black/55 transition hover:text-ink"><ArrowLeft className="h-4 w-4" /> All work</Link>
+        {preview && <div className="mb-6 bg-amber-100 px-4 py-3 text-sm text-amber-900">Preview — status: <b>{p.status}</b>. {sp.get('from') && <Link className="underline" to={sp.get('from')!}>Back to editor</Link>}</div>}
+        <Link to="/work" className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.18em] text-black/50 transition hover:text-accent"><ArrowLeft className="h-4 w-4" /> All work</Link>
 
-        <header className="mx-auto mt-8 max-w-3xl text-center sm:mt-12">
-          {p.category && <Link to={`/?category=${p.category.slug}#work`} className="text-[11px] font-medium uppercase tracking-[.22em] text-accent">{p.category.name}</Link>}
-          <h1 className="mt-3 font-display text-[clamp(2rem,7vw,4rem)] font-medium leading-[1.05] tracking-[-0.025em]">{p.title}</h1>
-          {meta.length > 0 && <p className="mt-4 text-[13px] text-black/50 sm:text-sm">{meta.join('  ·  ')}</p>}
-          {p.short_description && <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-black/65 sm:text-lg">{p.short_description}</p>}
+        <header className="mt-8 grid gap-8 sm:mt-12 lg:grid-cols-12 lg:gap-x-12">
+          <div className="lg:col-span-8">
+            <h1 className="animate-fadeUp font-display text-[clamp(2rem,8.6vw,3.25rem)] font-medium leading-[1.02] tracking-[-0.03em] sm:text-[clamp(2.75rem,6vw,5.5rem)]">{p.title}</h1>
+            {p.short_description && <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-black/60 sm:mt-7 sm:text-lg">{p.short_description}</p>}
+          </div>
+          {info.length > 0 && (
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-5 self-end text-sm lg:col-span-4 lg:grid-cols-1">
+              {info.map(([k, v]) => <div key={k}><dt className="eyebrow">{k}</dt><dd className="mt-1.5 font-display text-base font-medium">{v}</dd></div>)}
+            </dl>
+          )}
         </header>
 
-        <div className="mx-auto mt-10 flex max-w-4xl flex-col gap-3 sm:mt-14 sm:gap-6">
-          {images.length ? images.map((src, i) => <DesignImage key={src} src={src} alt={`${p.title}${images.length > 1 ? ` (${i + 1})` : ''}`} eager={i === 0} onOpen={() => setLightbox(i)} />)
-            : <div className="aspect-[4/5] w-full max-w-md self-center overflow-hidden rounded-md"><PlaceholderArt seed={p.title} /></div>}
+        <div className="mt-10 space-y-4 sm:mt-14 sm:space-y-8">
+          {images.length
+            ? images.map((src, i) => <DesignImage key={src} src={src} alt={`${p.title}${images.length > 1 ? ` (${i + 1})` : ''}`} ratio={i === 0 && p.cover_image_url === src ? projectRatio(p) : undefined} eager={i === 0} onOpen={() => setLightbox(i)} />)
+            : <div className="mx-auto aspect-[4/5] w-full max-w-md overflow-hidden"><PlaceholderArt seed={p.title} /></div>}
         </div>
 
-        {p.description && <div className="mx-auto mt-12 max-w-2xl sm:mt-16">{/<[a-z][\s\S]*>/i.test(p.description) ? <RichText html={p.description} /> : <p className="whitespace-pre-line text-[15px] leading-[1.8] text-black/70 sm:text-base">{p.description}</p>}</div>}
+        {p.description && (
+          <div className="mx-auto mt-14 max-w-2xl sm:mt-20">
+            {/<[a-z][\s\S]*>/i.test(p.description) ? <RichText html={p.description} /> : <div className="space-y-5 text-[15px] leading-[1.8] text-black/70 sm:text-base">{p.description.split(/\n{2,}/).map((t, i) => <p key={i} className="whitespace-pre-line">{t}</p>)}</div>}
+          </div>
+        )}
 
-        <div className="mx-auto mt-10 flex max-w-2xl justify-center sm:mt-14"><ShareButtons title={p.title} url={url} /></div>
+        <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center gap-x-6 gap-y-3 border-t border-black/10 pt-6 text-[11px] font-medium uppercase tracking-[.18em] sm:mt-16">
+          <span className="text-black/40">Share</span>
+          <button onClick={() => void copy()} className="transition hover:text-accent">Copy link</button>
+          {shares.map((s) => <a key={s.n} href={s.h} target="_blank" rel="noopener noreferrer" className="transition hover:text-accent">{s.n}</a>)}
+        </div>
       </div>
 
-      {!!related.data?.length && (
-        <section className="container-x mt-20 sm:mt-28">
-          <h2 className="mb-6 font-display text-2xl font-medium tracking-[-0.02em] sm:mb-8 sm:text-3xl">More work</h2>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 md:grid-cols-4">{related.data.map((r) => <WorkCard key={r.id} p={r} uniform />)}</div>
-        </section>
+      {!preview && (nav.data?.prev || nav.data?.next) && (
+        <nav aria-label="More projects" className="container-x mt-20 grid gap-px border-y border-black/10 bg-black/10 sm:mt-28 sm:grid-cols-2">
+          {[{ n: nav.data?.prev, label: 'Previous', icon: ArrowLeft }, { n: nav.data?.next, label: 'Next', icon: ArrowRight }].map(({ n, label, icon: Icon }) => (
+            n ? (
+              <Link key={label} to={`/work/${n.slug}`} className={`group flex items-center gap-5 bg-white py-8 sm:py-12 ${label === 'Next' ? 'sm:flex-row-reverse sm:text-right' : ''}`}>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/15 transition group-hover:border-accent group-hover:text-accent"><Icon className="h-4 w-4" /></span>
+                <span className="min-w-0"><span className="eyebrow block">{label} project</span><span className="mt-1.5 block truncate font-display text-lg font-medium sm:text-2xl">{n.title}</span></span>
+              </Link>
+            ) : <div key={label} className="hidden bg-white sm:block" />
+          ))}
+        </nav>
       )}
 
-      {lightbox !== null && <Lightbox images={images} index={lightbox} alt={p.title} onClose={() => setLightbox(null)} onIndex={setLightbox} />}
+      {lightbox !== null && <Lightbox images={images.map((s) => transformUrl(s, 2400))} index={lightbox} alt={p.title} onClose={() => setLightbox(null)} onIndex={setLightbox} />}
     </div>
   )
-  }
+      }
