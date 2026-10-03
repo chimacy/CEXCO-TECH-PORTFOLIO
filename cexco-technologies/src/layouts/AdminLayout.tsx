@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
-import { Loader2, FolderTree, Home, Image as ImageIcon, ImagePlus, LayoutDashboard, LogOut, Menu, Plus, Settings, X } from 'lucide-react'
+import { Loader2, FolderTree, Home, Image as ImageIcon, ImagePlus, LayoutDashboard, LogOut, Menu, Plus, Settings, User, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useSettings } from '@/lib/settings'
 import { Modal, Spinner } from '@/components/ui'
@@ -10,10 +10,10 @@ interface Item { to: string; label: string; icon: typeof Home; end?: boolean; su
 const GROUPS: { title?: string; items: Item[] }[] = [
   { items: [{ to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
   { title: 'Portfolio', items: [
-    { to: '/admin/portfolio', label: 'All Designs', icon: ImageIcon, end: true }, { to: '/admin/portfolio/new', label: 'Add Design', icon: Plus },
+    { to: '/admin/portfolio', label: 'All Projects', icon: ImageIcon, end: true }, { to: '/admin/portfolio/new', label: 'Add Project', icon: Plus },
     { to: '/admin/categories', label: 'Categories', icon: FolderTree }] },
   { title: 'Site', items: [
-    { to: '/admin/homepage', label: 'Home page', icon: Home, superOnly: true },
+    { to: '/admin/homepage', label: 'Homepage', icon: Home, superOnly: true }, { to: '/admin/about', label: 'About', icon: User, superOnly: true },
     { to: '/admin/media', label: 'Media Library', icon: ImagePlus }, { to: '/admin/settings', label: 'Settings', icon: Settings, superOnly: true }] },
 ]
 
@@ -86,4 +86,4 @@ export default function AdminLayout() {
       </Modal>
     </div>
   )
-}
+    }
