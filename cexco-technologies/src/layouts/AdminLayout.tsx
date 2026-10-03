@@ -76,7 +76,7 @@ export default function AdminLayout() {
         <span className="font-display font-semibold">{settings?.brand_name}</span>
         {open && <button className="ml-auto" onClick={() => setOpen(false)} aria-label="Close"><X className="h-5 w-5" /></button>}
       </header>
-      <main className="mx-auto max-w-6xl p-4 sm:p-8"><Outlet /></main>
+      <main className="mx-auto max-w-6xl px-[35px] py-6 sm:py-8"><Outlet /></main>
       <Modal open={confirmOut} onClose={() => !signingOut && setConfirmOut(false)} title="Sign out?"
         footer={<>
           <button className="btn btn-ghost" onClick={() => setConfirmOut(false)} disabled={signingOut}>Stay signed in</button>
