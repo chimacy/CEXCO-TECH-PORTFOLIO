@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { useSeo } from '@/hooks/useSeo'
 import * as api from '@/services/api'
@@ -29,36 +29,34 @@ function Lightbox({ images, index, alt, onClose, onIndex }: { images: string[]; 
     const dx = x - touch.current; touch.current = null
     if (Math.abs(dx) > 50) onIndex(dx < 0 ? (index + 1) % n : (index - 1 + n) % n)
   }
-  const btn = 'absolute rounded-full bg-white/10 p-3 text-white transition hover:bg-white/25'
+  const btn = 'absolute rounded-full bg-ink p-3 text-white transition hover:bg-accent'
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-white/95 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`${alt} — full size`} onClick={onClose}
       onTouchStart={(e) => { touch.current = e.touches[0].clientX }} onTouchEnd={(e) => swipe(e.changedTouches[0].clientX)}>
-      <img src={images[index]} alt={`${alt} ${index + 1}`} className="max-h-[92vh] max-w-[94vw] object-contain shadow-[0_20px_60px_-20px_rgba(0,0,0,.35)]" onClick={(e) => e.stopPropagation()} />
-      <button onClick={onClose} aria-label="Close" className={`${btn} right-4 top-[max(1rem,env(safe-area-inset-top))] !bg-ink`}><X className="h-5 w-5" /></button>
+      <img src={images[index]} alt={`${alt} ${index + 1}`} draggable={false} className="max-h-[92vh] max-w-[94vw] rounded-[35px] object-contain shadow-[0_20px_60px_-20px_rgba(0,0,0,.35)]" />
+      <button onClick={(e) => { e.stopPropagation(); onClose() }} aria-label="Close" className={`${btn} right-4 top-[max(1rem,env(safe-area-inset-top))]`}><X className="h-5 w-5" /></button>
       {n > 1 && <>
-        <button onClick={(e) => { e.stopPropagation(); onIndex((index - 1 + n) % n) }} aria-label="Previous image" className={`${btn} left-3 !bg-ink sm:left-6`}><ChevronLeft className="h-5 w-5" /></button>
-        <button onClick={(e) => { e.stopPropagation(); onIndex((index + 1) % n) }} aria-label="Next image" className={`${btn} right-3 !bg-ink sm:right-6`}><ChevronRight className="h-5 w-5" /></button>
+        <button onClick={(e) => { e.stopPropagation(); onIndex((index - 1 + n) % n) }} aria-label="Previous image" className={`${btn} left-3 sm:left-6`}><ChevronLeft className="h-5 w-5" /></button>
+        <button onClick={(e) => { e.stopPropagation(); onIndex((index + 1) % n) }} aria-label="Next image" className={`${btn} right-3 sm:right-6`}><ChevronRight className="h-5 w-5" /></button>
         <p className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] text-[11px] tracking-[.2em] text-black/50">{index + 1} / {n}</p>
       </>}
     </div>
   )
 }
 
-/** One design, shown whole: portrait work stays tall (never taller than the screen), landscape work runs wide. */
+/** One design, shown whole with 35px rounded corners: portrait work stays tall (never taller than the screen), landscape work runs wide. */
 function DesignImage({ src, alt, ratio, eager, onOpen }: { src: string; alt: string; ratio?: number; eager: boolean; onOpen: () => void }) {
   const [r, setR] = useState<number | undefined>(ratio)
   const [loaded, setLoaded] = useState(false)
   return (
-    <button type="button" onClick={onOpen} aria-label={`View ${alt} full size`} className="mx-auto block w-full overflow-hidden rounded-[28px] bg-neutral-100"
+    <button type="button" onClick={onOpen} aria-label={`View ${alt} full size`} className="mx-auto block w-full overflow-hidden rounded-[35px] bg-neutral-100"
       style={{ cursor: 'zoom-in', aspectRatio: loaded ? undefined : String(r ?? 0.8), maxWidth: r ? `min(100%, calc(88vh * ${r}))` : '100%' }}>
-      <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async"
+      <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" draggable={false}
         onLoad={(e) => { setLoaded(true); const { naturalWidth: w, naturalHeight: h } = e.currentTarget; if (w && h) setR(w / h) }}
         className={`block h-auto w-full transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`} />
     </button>
   )
 }
-
-interface Neighbour { slug: string; title: string; cover_image_url: string | null }
 
 export default function ProjectDetail({ preview }: { preview?: boolean }) {
   const { slug = '' } = useParams()
@@ -77,20 +75,12 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
     return (await api.getProject(slug)) as Project | null
   }, [slug, preview])
 
-  const nav = useAsync<{ prev: Neighbour | null; next: Neighbour | null }>(async () => {
-    if (!p || preview) return { prev: null, next: null }
-    const { data } = await supabase.from('portfolio_projects').select('slug,title,cover_image_url').eq('status', 'published').order('sort_order').order('created_at', { ascending: false }).limit(500)
-    const list = (data ?? []) as Neighbour[]
-    const i = list.findIndex((x) => x.slug === p.slug)
-    return { prev: i > 0 ? list[i - 1] : null, next: i >= 0 && i < list.length - 1 ? list[i + 1] : null }
-  }, [p?.id])
-
   useEffect(() => { if (p && !preview) api.trackEvent('project_view', p.id) }, [p?.id, preview]) // eslint-disable-line react-hooks/exhaustive-deps
   useSeo({ title: p?.title, description: p?.short_description ?? p?.description?.slice(0, 160), image: p?.cover_image_url, type: 'article', path: `/work/${slug}`, noindex: preview })
 
   if (loading) return <Spinner className="min-h-[60vh]" />
   if (error) return <div className="container-x py-20"><ErrorState message="Unable to load this project." onRetry={reload} /></div>
-  if (!p) return <div className="container-x py-24"><EmptyState title="Project not found" action={<Link to="/work" className="btn btn-primary">Back to all work</Link>} /></div>
+  if (!p) return <div className="container-x py-24"><EmptyState title="Project not found" action={<Link to="/" className="btn btn-primary">Back to home</Link>} /></div>
 
   const images = Array.from(new Set([p.cover_image_url, ...(p.images ?? []).map((i) => i.image_url)].filter((x): x is string => !!x)))
   const url = `${window.location.origin}/work/${p.slug}`
@@ -106,7 +96,7 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
     <div className="pb-4">
       <div className="container-x pt-6 sm:pt-10">
         {preview && <div className="mb-6 bg-amber-100 px-4 py-3 text-sm text-amber-900">Preview — status: <b>{p.status}</b>. {sp.get('from') && <Link className="underline" to={sp.get('from')!}>Back to editor</Link>}</div>}
-        <Link to="/work" className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.18em] text-black/50 transition hover:text-accent"><ArrowLeft className="h-4 w-4" /> All work</Link>
+        <Link to={preview ? (sp.get('from') ?? '/admin/portfolio') : '/'} className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.18em] text-black/50 transition hover:text-accent"><ArrowLeft className="h-4 w-4" /> Back</Link>
 
         <header className="mt-8 grid gap-8 sm:mt-12 lg:grid-cols-12 lg:gap-x-12">
           <div className="lg:col-span-8">
@@ -123,7 +113,7 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
         <div className="mt-10 space-y-4 sm:mt-14 sm:space-y-8">
           {images.length
             ? images.map((src, i) => <DesignImage key={src} src={src} alt={`${p.title}${images.length > 1 ? ` (${i + 1})` : ''}`} ratio={i === 0 && p.cover_image_url === src ? projectRatio(p) : undefined} eager={i === 0} onOpen={() => setLightbox(i)} />)
-            : <div className="mx-auto aspect-[4/5] w-full max-w-md overflow-hidden"><PlaceholderArt seed={p.title} /></div>}
+            : <div className="mx-auto aspect-[4/5] w-full max-w-md overflow-hidden rounded-[35px]"><PlaceholderArt seed={p.title} /></div>}
         </div>
 
         {p.description && (
@@ -139,20 +129,7 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
         </div>
       </div>
 
-      {!preview && (nav.data?.prev || nav.data?.next) && (
-        <nav aria-label="More projects" className="container-x mt-20 grid gap-px border-y border-black/10 bg-black/10 sm:mt-28 sm:grid-cols-2">
-          {[{ n: nav.data?.prev, label: 'Previous', icon: ArrowLeft }, { n: nav.data?.next, label: 'Next', icon: ArrowRight }].map(({ n, label, icon: Icon }) => (
-            n ? (
-              <Link key={label} to={`/work/${n.slug}`} className={`group flex items-center gap-5 bg-white py-8 sm:py-12 ${label === 'Next' ? 'sm:flex-row-reverse sm:text-right' : ''}`}>
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/15 transition group-hover:border-accent group-hover:text-accent"><Icon className="h-4 w-4" /></span>
-                <span className="min-w-0"><span className="eyebrow block">{label} project</span><span className="mt-1.5 block truncate font-display text-lg font-medium sm:text-2xl">{n.title}</span></span>
-              </Link>
-            ) : <div key={label} className="hidden bg-white sm:block" />
-          ))}
-        </nav>
-      )}
-
       {lightbox !== null && <Lightbox images={images.map((s) => transformUrl(s, 2400))} index={lightbox} alt={p.title} onClose={() => setLightbox(null)} onIndex={setLightbox} />}
     </div>
   )
-      }
+}
