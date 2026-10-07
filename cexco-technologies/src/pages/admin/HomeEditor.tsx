@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { ErrorState, Field, Spinner } from '@/components/ui'
-import { ImageField } from '@/components/admin/MediaPicker'
+import { HeroImageField } from '@/components/admin/ImageCropper'
 import { useAsync } from '@/hooks/useAsync'
 import { listRows } from '@/services/admin'
 import { parseRatio } from '@/lib/sections'
@@ -20,12 +20,12 @@ const RATIOS = [
 ]
 
 interface Form {
-  badge: string; title: string; description: string; cta_text: string; hero_image_url: string | null
+  title: string; description: string; cta_text: string; hero_image_url: string | null; hero_source_url: string | null
   tile_ratio: string; work_intro: string
   wa_title: string; wa_text: string; wa_button: string; wa_message: string; wa_on: boolean
   accent: string
 }
-const EMPTY: Form = { badge: '', title: '', description: '', cta_text: '', hero_image_url: null, tile_ratio: '4/5', work_intro: '', wa_title: '', wa_text: '', wa_button: '', wa_message: '', wa_on: true, accent: '' }
+const EMPTY: Form = { title: '', description: '', cta_text: '', hero_image_url: null, hero_source_url: null, tile_ratio: '4/5', work_intro: '', wa_title: '', wa_text: '', wa_button: '', wa_message: '', wa_on: true, accent: '' }
 
 export default function HomeEditor() {
   const toast = useToast()
@@ -45,8 +45,8 @@ export default function HomeEditor() {
     const ccfg = (data.cta?.config ?? {}) as Record<string, unknown>
     const custom = ccfg.wa === true
     setF({
-      badge: typeof cfg.badge === 'string' ? cfg.badge : '', title: String(data.hero?.title ?? ''), description: String(data.hero?.description ?? ''),
-      cta_text: String(data.hero?.cta_text ?? ''), hero_image_url: typeof cfg.hero_image_url === 'string' ? cfg.hero_image_url : null,
+      title: String(data.hero?.title ?? ''), description: String(data.hero?.description ?? ''),
+      cta_text: String(data.hero?.cta_text ?? ''), hero_image_url: typeof cfg.hero_image_url === 'string' ? cfg.hero_image_url : null, hero_source_url: typeof cfg.hero_source_url === 'string' ? cfg.hero_source_url : null,
       tile_ratio: typeof gcfg.tile_ratio === 'string' ? gcfg.tile_ratio : '4/5', work_intro: String(data.gal?.description ?? ''),
       wa_title: custom ? String(data.cta?.title ?? '') : '', wa_text: custom ? String(data.cta?.description ?? '') : '', wa_button: custom ? String(data.cta?.cta_text ?? '') : '',
       wa_message: typeof ccfg.whatsapp_message === 'string' ? ccfg.whatsapp_message : '', wa_on: data.cta ? Boolean(data.cta.is_visible) : true,
@@ -63,7 +63,7 @@ export default function HomeEditor() {
     if (!ratioOk) { toast.error('Design shape must look like 4/5 or 1080x1350.'); return }
     setBusy(true)
     try {
-      const heroCfg = { ...((data?.hero?.config ?? {}) as Record<string, unknown>), badge: f.badge || null, hero_image_url: f.hero_image_url }
+      const heroCfg = { ...((data?.hero?.config ?? {}) as Record<string, unknown>), badge: null, hero_image_url: f.hero_image_url, hero_source_url: f.hero_source_url }
       const galCfg = { ...((data?.gal?.config ?? {}) as Record<string, unknown>), tile_ratio: f.tile_ratio || '4/5' }
       const ctaCfg = { ...((data?.cta?.config ?? {}) as Record<string, unknown>), wa: true, whatsapp_message: f.wa_message || null }
       const { error: e } = await supabase.from('homepage_sections').upsert([
@@ -95,12 +95,11 @@ export default function HomeEditor() {
 
       <section className="card grid gap-4 p-5 sm:grid-cols-2">
         <h2 className="font-display font-semibold sm:col-span-2">Opening</h2>
-        <div className="sm:col-span-2"><Field label="Small label" hint="Appears next to the brand name. Default: Creative Design Portfolio."><input className="input" value={f.badge} onChange={(e) => set('badge', e.target.value)} /></Field></div>
         <div className="sm:col-span-2"><Field label="Headline" hint="Shown in large capitals. Press Enter to choose where lines break."><textarea rows={4} className="input" value={f.title} onChange={(e) => set('title', e.target.value)} /></Field></div>
         <div className="sm:col-span-2"><Field label="Supporting text"><textarea rows={3} className="input" value={f.description} onChange={(e) => set('description', e.target.value)} /></Field></div>
         <Field label="Button text" hint="Scrolls down to your work. Default: Explore work."><input className="input" value={f.cta_text} onChange={(e) => set('cta_text', e.target.value)} /></Field>
-        <div className="sm:col-span-2"><ImageField label="Opening image (optional)" value={f.hero_image_url} onChange={(v) => set('hero_image_url', v)} />
-          <p className="mt-2 text-xs text-black/50">A landscape image (about 3:2 or 16:10) works best. It is cropped to fit the frame.</p></div>
+        <div className="sm:col-span-2"><HeroImageField value={f.hero_image_url} source={f.hero_source_url} onChange={(url, source) => setF((x) => ({ ...x, hero_image_url: url, hero_source_url: source }))} />
+          <p className="mt-2 text-xs text-black/50">After choosing a design you can drag and zoom to pick exactly which area is shown.</p></div>
       </section>
 
       <section className="card grid gap-4 p-5 sm:grid-cols-2">
@@ -139,4 +138,4 @@ export default function HomeEditor() {
       </section>
     </div>
   )
-  }
+      }
