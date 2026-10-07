@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
-import { Loader2, FolderTree, Home, Image as ImageIcon, ImagePlus, LayoutDashboard, LogOut, Menu, Plus, Settings, User, X } from 'lucide-react'
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Loader2, FolderTree, Home, Image as ImageIcon, ImagePlus, LayoutDashboard, LogOut, Menu, Plus, Settings, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useSettings } from '@/lib/settings'
 import { Modal, Spinner } from '@/components/ui'
@@ -13,7 +13,7 @@ const GROUPS: { title?: string; items: Item[] }[] = [
     { to: '/admin/portfolio', label: 'All Projects', icon: ImageIcon, end: true }, { to: '/admin/portfolio/new', label: 'Add Project', icon: Plus },
     { to: '/admin/categories', label: 'Categories', icon: FolderTree }] },
   { title: 'Site', items: [
-    { to: '/admin/homepage', label: 'Homepage', icon: Home, superOnly: true }, { to: '/admin/about', label: 'About', icon: User, superOnly: true },
+    { to: '/admin/homepage', label: 'Homepage', icon: Home, superOnly: true },
     { to: '/admin/media', label: 'Media Library', icon: ImagePlus }, { to: '/admin/settings', label: 'Settings', icon: Settings, superOnly: true }] },
 ]
 
@@ -24,6 +24,7 @@ export default function AdminLayout() {
   const [confirmOut, setConfirmOut] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const loc = useLocation()
+  const navigate = useNavigate()
   useEffect(() => setOpen(false), [loc.pathname, loc.search])
   useEffect(() => { document.title = `Admin | ${settings?.brand_name ?? ''}` }, [settings?.brand_name])
 
@@ -76,7 +77,13 @@ export default function AdminLayout() {
         <span className="font-display font-semibold">{settings?.brand_name}</span>
         {open && <button className="ml-auto" onClick={() => setOpen(false)} aria-label="Close"><X className="h-5 w-5" /></button>}
       </header>
-      <main className="mx-auto max-w-6xl px-[35px] py-6 sm:py-8"><Outlet /></main>
+      <main className="mx-auto max-w-6xl px-[35px] py-6 sm:py-8">
+        {loc.pathname !== '/admin' && (
+          <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/admin'))} aria-label="Go back"
+            className="mb-5 inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-3.5 py-2 text-sm transition hover:border-ink"><ArrowLeft className="h-4 w-4" /> Back</button>
+        )}
+        <Outlet />
+      </main>
       <Modal open={confirmOut} onClose={() => !signingOut && setConfirmOut(false)} title="Sign out?"
         footer={<>
           <button className="btn btn-ghost" onClick={() => setConfirmOut(false)} disabled={signingOut}>Stay signed in</button>
@@ -86,4 +93,4 @@ export default function AdminLayout() {
       </Modal>
     </div>
   )
-    }
+  }
