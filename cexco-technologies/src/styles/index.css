@@ -64,3 +64,17 @@
     padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
   }
   }
+
+/* ───── Design protection (public site) ───── */
+.public-site, .public-site * {
+  -webkit-touch-callout: none;          /* iOS: no "Save image" callout on long-press */
+  -webkit-user-select: none; user-select: none;
+}
+.public-site img {
+  pointer-events: none;                 /* touches/clicks go to the card, so there is nothing to long-press or drag */
+  -webkit-user-drag: none; user-drag: none;
+}
+@media print {
+  .public-site img, .public-site [style*="background-image"] { display: none !important; }
+  .public-site::before { content: "Printing is disabled."; display: block; padding: 2rem; font-family: sans-serif; }
+          }
