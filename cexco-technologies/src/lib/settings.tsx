@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getSettings } from '@/services/api'
+import '@/lib/prefetch'
 import type { SiteSettings } from '@/types'
 
 interface Ctx { settings: SiteSettings | null; loading: boolean; error: string | null; refresh: () => Promise<void> }
@@ -76,13 +77,16 @@ try {
   if (cached) { const rgb = JSON.parse(cached) as RGB; if (Array.isArray(rgb) && rgb.length === 3) applyAccent(rgb) }
 } catch { /* ignore */ }
 
+// Start loading the site settings immediately (in parallel with the homepage data), not after the first render
+let firstSettings: Promise<SiteSettings | null> | null = getSettings()
+firstSettings.catch(() => undefined)
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
-    try { setSettings(await getSettings()); setError(null) }
+        try { const p = firstSettings ?? getSettings(); firstSettings = null; setSettings(await p); setError(null) }
     catch (e) { setError(e instanceof Error ? e.message : 'Unable to load site settings.') }
     finally { setLoading(false) }
   }, [])
