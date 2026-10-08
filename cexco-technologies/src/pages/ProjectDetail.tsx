@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { useSeo } from '@/hooks/useSeo'
 import * as api from '@/services/api'
-import { supabase } from '@/lib/supabase'
+import { useSettings } from '@/lib/settings'
+import { getProjectDetail } from '@/services/projects'
+import { formatPrice } from '@/utils/format'
 import { useToast } from '@/lib/toast'
 import { EmptyState, ErrorState, PlaceholderArt, Spinner } from '@/components/ui'
 import { RichText } from '@/components/ui/RichText'
@@ -62,18 +64,12 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
   const { slug = '' } = useParams()
   const [sp] = useSearchParams()
   const toast = useToast()
+  const { settings } = useSettings()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [lightbox, setLightbox] = useState<number | null>(null)
 
-  const { data: p, loading, error, reload } = useAsync<Project | null>(async () => {
-    if (preview) { // admin-only: RLS lets signed-in admins read drafts
-      const res = await supabase.from('portfolio_projects').select('*, category:categories(id,name,slug), images:portfolio_images(*)').eq('slug', slug).maybeSingle()
-      if (res.error) throw new Error(res.error.message)
-      const d = res.data as Project | null
-      d?.images?.sort((a, b) => a.sort_order - b.sort_order)
-      return d
-    }
-    return (await api.getProject(slug)) as Project | null
-  }, [slug, preview])
+  const { data: p, loading, error, reload } = useAsync<Project | null>(() => getProjectDetail(slug, preview), [slug, preview])
 
   useEffect(() => { if (p && !preview) api.trackEvent('project_view', p.id) }, [p?.id, preview]) // eslint-disable-line react-hooks/exhaustive-deps
   useSeo({ title: p?.title, description: p?.short_description ?? p?.description?.slice(0, 160), image: p?.cover_image_url, type: 'article', path: `/work/${slug}`, noindex: preview })
@@ -84,7 +80,8 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
 
   const images = Array.from(new Set([p.cover_image_url, ...(p.images ?? []).map((i) => i.image_url)].filter((x): x is string => !!x)))
   const url = `${window.location.origin}/work/${p.slug}`
-  const info = [['Category', p.category?.name], ['Year', String(projectYear(p))], ['Client', p.client_name], ['Type', p.client_type]].filter(([, v]) => !!v) as [string, string][]
+  const price = p.price_label?.trim() || (p.price != null ? formatPrice(p.price, null, settings?.currency) : '')
+  const info = [['Category', (p.cats?.length ? p.cats : p.category ? [p.category] : []).map((c) => c.name).join(' · ')], ['Year', String(projectYear(p))], ['Client', p.client_name], ['Type', p.client_type], ['Price', price]].filter(([, v]) => !!v) as [string, string][]
   const copy = async () => { try { await navigator.clipboard.writeText(url); toast.success('Link copied.') } catch { toast.error('Could not copy the link.') } }
   const enc = encodeURIComponent
   const shares = [
@@ -96,7 +93,8 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
     <div className="pb-4">
       <div className="container-x pt-6 sm:pt-10">
         {preview && <div className="mb-6 bg-amber-100 px-4 py-3 text-sm text-amber-900">Preview — status: <b>{p.status}</b>. {sp.get('from') && <Link className="underline" to={sp.get('from')!}>Back to editor</Link>}</div>}
-        <Link to={preview ? (sp.get('from') ?? '/admin/portfolio') : '/'} className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.18em] text-black/50 transition hover:text-accent"><ArrowLeft className="h-4 w-4" /> Back</Link>
+        <button type="button" onClick={() => { if (preview) navigate(sp.get('from') ?? '/admin/portfolio'); else if (location.key !== 'default') navigate(-1); else navigate('/') }}
+          className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.18em] text-black/50 transition-colors hover:text-accent"><ArrowLeft className="h-4 w-4" /> Back</button>
 
         <header className="mt-8 grid gap-8 sm:mt-12 lg:grid-cols-12 lg:gap-x-12">
           <div className="lg:col-span-8">
@@ -105,7 +103,7 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
           </div>
           {info.length > 0 && (
             <dl className="grid grid-cols-2 gap-x-6 gap-y-5 self-end text-sm lg:col-span-4 lg:grid-cols-1">
-              {info.map(([k, v]) => <div key={k}><dt className="eyebrow">{k}</dt><dd className="mt-1.5 font-display text-base font-medium">{v}</dd></div>)}
+              {info.map(([k, v]) => <div key={k}><dt className="eyebrow">{k}</dt><dd className={`mt-1.5 font-display text-base font-medium ${k === 'Price' ? 'text-accent' : ''}`}>{v}</dd></div>)}
             </dl>
           )}
         </header>
@@ -132,4 +130,4 @@ export default function ProjectDetail({ preview }: { preview?: boolean }) {
       {lightbox !== null && <Lightbox images={images.map((s) => transformUrl(s, 2400))} index={lightbox} alt={p.title} onClose={() => setLightbox(null)} onIndex={setLightbox} />}
     </div>
   )
-}
+    }
