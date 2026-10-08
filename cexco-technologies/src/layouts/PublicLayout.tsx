@@ -1,9 +1,13 @@
-import { useEffect } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import { useSettings } from '@/lib/settings'
 import { cn } from '@/utils/format'
 import { Spinner } from '@/components/ui'
+import { BackToTop } from '@/components/BackToTop'
 import { WhatsAppCta } from '@/components/WhatsAppCta'
+
+const SearchOverlay = lazy(() => import('@/components/SearchOverlay'))
 
 export function Brand({ className }: { className?: string }) {
   const { settings } = useSettings()
@@ -15,17 +19,45 @@ export function Brand({ className }: { className?: string }) {
   )
 }
 
+// Where the visitor was on each page, so "Back" returns to the exact spot instead of the top
+const savedScroll = new Map<string, number>()
+function restoreScroll(y: number) {
+  let tries = 0
+  const step = () => {
+    window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior })
+    if (Math.abs(window.scrollY - y) > 2 && tries++ < 40) requestAnimationFrame(step)
+  }
+  step()
+}
+
 export default function PublicLayout() {
   const { settings, loading, error } = useSettings()
-  const { pathname, hash } = useLocation()
+  const { pathname, search, hash } = useLocation()
+  const navType = useNavigationType()
+  const [searching, setSearching] = useState(false)
+  const closeSearch = useCallback(() => setSearching(false), [])
+  const keyRef = useRef('')
+  keyRef.current = pathname + search
+
+  useEffect(() => { window.history.scrollRestoration = 'manual' }, [])
+
+  // Remember the scroll position at the moment a link is clicked
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as Element | null)?.closest?.('a[href]')) savedScroll.set(keyRef.current, window.scrollY)
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  }, [])
 
   useEffect(() => {
     if (hash) {
       const t = window.setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }), 80)
       return () => window.clearTimeout(t)
     }
-    window.scrollTo(0, 0)
-  }, [pathname, hash])
+    if (navType === 'POP') restoreScroll(savedScroll.get(pathname + search) ?? 0)
+    else window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+  }, [pathname, hash]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Design protection: no right-click / long-press menu, no dragging images out, no save or print shortcuts
   useEffect(() => {
@@ -54,15 +86,19 @@ export default function PublicLayout() {
   return (
     <div className="public-site flex min-h-screen flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:bg-white focus:px-4 focus:py-2">Skip to content</a>
-      <header className="sticky top-0 z-40 border-b border-black/[.07] bg-white/90 backdrop-blur">
-        <div className="container-x flex h-14 items-center sm:h-16">
+      <header className="sticky top-0 z-40 border-b border-black/[.07] bg-white">
+        <div className="container-x flex h-14 items-center justify-between gap-4 sm:h-16">
           <Brand />
+          <button onClick={() => setSearching(true)} aria-label="Search designs"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/15 transition-colors hover:border-accent hover:text-accent">
+            <Search className="h-[18px] w-[18px]" />
+          </button>
         </div>
       </header>
 
       <main id="main" className="flex-1">
         {error && <div role="alert" className="bg-amber-50 px-4 py-2 text-center text-sm text-amber-800">Some site information could not be loaded.</div>}
-        <div key={pathname} className="animate-fade"><Outlet /></div>
+        <div key={pathname}><Outlet /></div>
       </main>
 
       <WhatsAppCta />
@@ -72,6 +108,9 @@ export default function PublicLayout() {
           {settings?.copyright_text ?? `© ${new Date().getFullYear()} ${settings?.brand_name ?? ''}`}
         </p>
       </footer>
+
+      <BackToTop />
+      {searching && <Suspense fallback={null}><SearchOverlay onClose={closeSearch} /></Suspense>}
     </div>
   )
-                        }
+  }
