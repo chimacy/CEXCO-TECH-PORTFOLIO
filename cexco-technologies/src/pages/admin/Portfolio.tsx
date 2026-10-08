@@ -9,10 +9,11 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/lib/toast'
 import { cn, errMsg, slugify } from '@/utils/format'
 import { measureImage } from '@/utils/image'
+import { writeFor } from '@/utils/writer'
 import type { PortfolioImage } from '@/types'
 
 const byOrder = (a: Row, b: Row) => Number(a.sort_order) - Number(b.sort_order) || String(b.created_at).localeCompare(String(a.created_at))
-const friendly = (m: string) => (/year|cover_ratio/.test(m) && /column|schema/i.test(m) ? 'Run the 005 SQL in Supabase first (see instructions), then try again.' : /duplicate|unique/i.test(m) ? 'That slug is already in use.' : m)
+const friendly = (m: string) => (/year|cover_ratio|secondary_category_id/.test(m) && /column|schema/i.test(m) ? 'Run the new SQL (005 and 006) in Supabase first, then try again.' : /duplicate|unique/i.test(m) ? 'That slug is already in use.' : m)
 
 export function PortfolioList() {
   const toast = useToast()
@@ -128,8 +129,8 @@ export function PortfolioList() {
   )
 }
 
-interface Form { title: string; slug: string; short_description: string; description: string; category_id: string; client_name: string; year: string; cover_image_url: string | null; featured: boolean; status: string; sort_order: string }
-const EMPTY: Form = { title: '', slug: '', short_description: '', description: '', category_id: '', client_name: '', year: String(new Date().getFullYear()), cover_image_url: null, featured: false, status: 'draft', sort_order: '0' }
+interface Form { title: string; slug: string; short_description: string; description: string; category_id: string; secondary_category_id: string; client_name: string; price_label: string; year: string; cover_image_url: string | null; featured: boolean; status: string; sort_order: string }
+const EMPTY: Form = { title: '', slug: '', short_description: '', description: '', category_id: '', secondary_category_id: '', client_name: '', price_label: '', year: String(new Date().getFullYear()), cover_image_url: null, featured: false, status: 'published', sort_order: '0' }
 
 export function PortfolioEditor() {
   const { id } = useParams(); const isNew = !id || id === 'new'
@@ -143,12 +144,48 @@ export function PortfolioEditor() {
     if (isNew) return null
     const { data, error } = await supabase.from('portfolio_projects').select('*, images:portfolio_images(*)').eq('id', id).single()
     if (error) throw new Error(error.message)
-    setF({ title: data.title, slug: data.slug, short_description: data.short_description ?? '', description: data.description ?? '', category_id: data.category_id ?? '', client_name: data.client_name ?? '', year: String(data.year ?? new Date(data.created_at).getFullYear()), cover_image_url: data.cover_image_url, featured: data.featured, status: data.status, sort_order: String(data.sort_order) })
+    setF({ title: data.title, slug: data.slug, short_description: data.short_description ?? '', description: data.description ?? '', category_id: data.category_id ?? '', client_name: data.client_name ?? '', year: String(data.year ?? new Date(data.created_at).getFullYear()), cover_image_url: data.cover_image_url, featured: data.featured, status: data.status, sort_order: String(data.sort_order), secondary_category_id: data.secondary_category_id ?? '', price_label: data.price_label ?? '' })
     setOrig({ cover: data.cover_image_url, ratio: data.cover_ratio ? Number(data.cover_ratio) : null })
     setImages((data.images as PortfolioImage[]).sort((a, b) => a.sort_order - b.sort_order).map((i) => ({ image_url: i.image_url, alt_text: i.alt_text })))
     return data
   }, [id])
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((x) => ({ ...x, [k]: v }))
+
+  // Smart writer: drafts the short description, description and categories from the title (anything you edit yourself is left alone)
+  const touched = useRef({ short: false, desc: false, cat: false })
+  const lastTitle = useRef('')
+  const [written, setWritten] = useState(false)
+  const generate = (force: boolean) => {
+    const title = f.title.trim()
+    if (title.length < 3 || !cats.data) return
+    const out = writeFor(title, cats.data.map((c) => ({ id: c.id, name: String(c.name) })))
+    if (force) touched.current = { short: false, desc: false, cat: false }
+    setF((x) => ({
+      ...x,
+      short_description: touched.current.short ? x.short_description : out.short,
+      description: touched.current.desc ? x.description : out.description,
+      category_id: touched.current.cat ? x.category_id : out.primary ?? x.category_id,
+      secondary_category_id: touched.current.cat ? x.secondary_category_id : out.secondary ?? '',
+    }))
+    setWritten(true)
+  }
+  useEffect(() => {
+    if (!isNew || f.title.trim().length < 4 || !cats.data) return
+    const t = window.setTimeout(() => {
+      const title = f.title.trim()
+      if (title === lastTitle.current) return
+      lastTitle.current = title
+      generate(false)
+    }, 900)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.title, isNew, cats.data])
+
+  const resetForm = () => {
+    setF({ ...EMPTY, year: String(new Date().getFullYear()) }); setImages([]); setOrig({ cover: null, ratio: null })
+    setSlugTouched(false); setErrs({}); setWritten(false); lastTitle.current = ''; touched.current = { short: false, desc: false, cat: false }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const addImages = async (list: FileList | null) => {
     if (!list?.length) return; setUploading(true)
@@ -169,13 +206,15 @@ export function PortfolioEditor() {
     setErrs(e); if (Object.keys(e).length || saving) return; setSaving(true)
     try {
       const ratio = f.cover_image_url ? (f.cover_image_url === orig.cover && orig.ratio ? orig.ratio : await measureImage(f.cover_image_url)) : null
-      const payload = { title: f.title.trim(), slug: f.slug, short_description: f.short_description || null, description: f.description || null, category_id: f.category_id || null, client_name: f.client_name || null, year: f.year ? Number(f.year) : null, cover_image_url: f.cover_image_url, cover_ratio: ratio, featured: f.featured, status: status ?? f.status, sort_order: Number(f.sort_order) || 0 }
+      const payload = { title: f.title.trim(), slug: f.slug, short_description: f.short_description || null, description: f.description || null, category_id: f.category_id || null, secondary_category_id: f.secondary_category_id && f.secondary_category_id !== f.category_id ? f.secondary_category_id : null, price_label: f.price_label.trim() || null, client_name: f.client_name || null, year: f.year ? Number(f.year) : null, cover_image_url: f.cover_image_url, cover_ratio: ratio, featured: f.featured, status: status ?? f.status, sort_order: Number(f.sort_order) || 0 }
       const row = await saveRow('portfolio_projects', payload, isNew ? undefined : id)
       const { error: de } = await supabase.from('portfolio_images').delete().eq('project_id', row.id); if (de) throw de
       if (images.length) { const { error: ie } = await supabase.from('portfolio_images').insert(images.map((im, i) => ({ project_id: row.id, image_url: im.image_url, alt_text: im.alt_text, sort_order: i }))); if (ie) throw ie }
       toast.success(payload.status === 'published' ? 'Project published.' : 'Project saved.')
       setOrig({ cover: f.cover_image_url, ratio })
-      if (isNew) nav(`/admin/portfolio/${row.id}`, { replace: true }); else set('status', payload.status)
+      if (isNew && payload.status === 'published') resetForm() // ready for the next project
+      else if (isNew) nav(`/admin/portfolio/${row.id}`, { replace: true })
+      else set('status', payload.status)
     } catch (x) { toast.error(friendly(errMsg(x))) } finally { setSaving(false) }
   }
 
@@ -188,19 +227,25 @@ export function PortfolioEditor() {
         <div className="flex flex-wrap gap-2">
           {!isNew && <Link className="btn btn-ghost" to={`/admin/preview/${f.slug}?from=/admin/portfolio/${id}`}><Eye className="h-4 w-4" /> Preview</Link>}
           <button className="btn btn-ghost" disabled={saving} onClick={() => void save('draft')}>Save draft</button>
-          <button className="btn btn-primary" disabled={saving} onClick={() => void save('published')}>{saving && <Loader2 className="h-4 w-4 animate-spin" />} {f.status === 'published' ? 'Update' : 'Publish'}</button>
+          <button className="btn btn-primary" disabled={saving} onClick={() => void save('published')}>{saving && <Loader2 className="h-4 w-4 animate-spin" />} {!isNew && f.status === 'published' ? 'Update' : 'Publish'}</button>
         </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="card space-y-4 p-5 lg:col-span-2">
           <Field label="Title" required error={errs.title}><input className="input" value={f.title} onChange={(e) => { set('title', e.target.value); if (!slugTouched) set('slug', slugify(e.target.value)) }} /></Field>
           <Field label="Slug" required error={errs.slug} hint="Web address: /work/your-slug"><input className="input" value={f.slug} onChange={(e) => { setSlugTouched(true); set('slug', slugify(e.target.value)) }} /></Field>
-          <Field label="Short description" hint="One line shown under the title on the project page."><input className="input" value={f.short_description} onChange={(e) => set('short_description', e.target.value)} /></Field>
-          <Field label="Description" hint="Optional. Separate paragraphs with a blank line."><textarea rows={6} className="input" value={f.description} onChange={(e) => set('description', e.target.value)} /></Field>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Category"><select className="input" value={f.category_id} onChange={(e) => set('category_id', e.target.value)}><option value="">None</option>{cats.data?.map((c) => <option key={c.id} value={c.id}>{String(c.name)}</option>)}</select></Field>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-black/[.04] px-3.5 py-2.5 text-xs text-black/60">
+            <span>{written ? 'Written automatically from the title. Edit anything you like.' : 'Type the title and the short description, description and category are written for you.'}</span>
+            <button type="button" className="btn btn-ghost !px-3 !py-1.5 !text-xs" disabled={f.title.trim().length < 3} onClick={() => generate(true)}>Write again</button>
+          </div>
+          <Field label="Short description" hint="One line shown under the title on the project page."><input className="input" value={f.short_description} onChange={(e) => { touched.current.short = true; set('short_description', e.target.value) }} /></Field>
+          <Field label="Description" hint="Optional. Separate paragraphs with a blank line."><textarea rows={6} className="input" value={f.description} onChange={(e) => { touched.current.desc = true; set('description', e.target.value) }} /></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Category"><select className="input" value={f.category_id} onChange={(e) => { touched.current.cat = true; set('category_id', e.target.value) }}><option value="">None</option>{cats.data?.map((c) => <option key={c.id} value={c.id}>{String(c.name)}</option>)}</select></Field>
+            <Field label="Second category (optional)" hint="The project also appears when people browse or search this category."><select className="input" value={f.secondary_category_id} onChange={(e) => { touched.current.cat = true; set('secondary_category_id', e.target.value) }}><option value="">None</option>{cats.data?.filter((c) => c.id !== f.category_id).map((c) => <option key={c.id} value={c.id}>{String(c.name)}</option>)}</select></Field>
             <Field label="Year" error={errs.year}><input inputMode="numeric" maxLength={4} className="input" value={f.year} onChange={(e) => set('year', e.target.value.replace(/\D/g, ''))} /></Field>
             <Field label="Client / project label"><input className="input" value={f.client_name} onChange={(e) => set('client_name', e.target.value)} /></Field>
+            <div className="sm:col-span-2"><Field label="Price or price range (optional)" hint="Shown on the project page. Examples: ₦15,000 · ₦15,000 – ₦30,000 · From ₦10,000"><input className="input" value={f.price_label} onChange={(e) => set('price_label', e.target.value)} /></Field></div>
           </div>
         </div>
         <div className="space-y-6">
@@ -217,7 +262,8 @@ export function PortfolioEditor() {
                   <button aria-label="Move earlier" onClick={() => moveImg(i, -1)}><ArrowUp className="h-3.5 w-3.5 -rotate-90" /></button>
                   <button aria-label="Use as cover" onClick={() => set('cover_image_url', im.image_url)}><Star className={cn('h-3.5 w-3.5', f.cover_image_url === im.image_url && 'fill-amber-400 text-amber-400')} /></button>
                   <button aria-label="Move later" onClick={() => moveImg(i, 1)}><ArrowDown className="h-3.5 w-3.5 -rotate-90" /></button>
-                                </div></div>))}</div>
+                  <button aria-label="Remove image" onClick={() => setImages((x) => x.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5" /></button>
+                </div></div>))}</div>
             <button className="btn btn-ghost mt-3 w-full" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Add images</button>
             <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={(e) => void addImages(e.target.files)} />
           </div>
@@ -226,4 +272,3 @@ export function PortfolioEditor() {
     </div>
   )
     }
-    
