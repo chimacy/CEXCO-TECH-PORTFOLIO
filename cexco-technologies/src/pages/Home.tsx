@@ -1,10 +1,10 @@
 import { useRef, type CSSProperties } from 'react'
 import { ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react'
-import { useAsync } from '@/hooks/useAsync'
 import { useSeo } from '@/hooks/useSeo'
+import { useCached } from '@/lib/cache'
 import { useSettings } from '@/lib/settings'
 import { parseRatio, useSections } from '@/lib/sections'
-import * as api from '@/services/api'
+import { loadFeatured } from '@/services/projects'
 import { Img } from '@/components/ui'
 import { WorkArchive } from '@/components/WorkArchive'
 import { WorkTile, useBreakpoint } from '@/components/WorkGrid'
@@ -27,7 +27,7 @@ function Hero({ hero, loading, target }: { hero?: HomepageSection; loading: bool
           <h1 className="animate-fadeUp whitespace-pre-line font-display text-[clamp(2.1rem,9.4vw,3.5rem)] font-medium uppercase leading-[.95] tracking-[-0.035em] sm:text-[clamp(2.75rem,6.4vw,4.5rem)] lg:text-[clamp(2.6rem,4.4vw,4.75rem)]">{title}</h1>
           {hero?.description && <p className="mt-6 max-w-md text-[15px] leading-relaxed text-black/60 sm:text-base">{hero.description}</p>}
           <a href={target} className="group mt-7 inline-flex items-center gap-3 text-[12px] font-medium uppercase tracking-[.18em]">
-            <span className="border-b border-ink pb-1 transition group-hover:border-accent group-hover:text-accent">{hero?.cta_text || 'Explore work'}</span>
+            <span className="border-b border-ink pb-1 transition-colors group-hover:border-accent group-hover:text-accent">{hero?.cta_text || 'Explore work'}</span>
             <ArrowDown className="h-4 w-4 transition group-hover:translate-y-1 group-hover:text-accent" />
           </a>
         </div>
@@ -41,7 +41,7 @@ function Hero({ hero, loading, target }: { hero?: HomepageSection; loading: bool
   )
 }
 
-/** Compact, swipeable strip of the projects marked "Featured": small cards so several fit on screen before you scroll. */
+/** Fixed-height strip of the projects marked "Featured". It only slides left and right, never up and down. */
 function SelectedWork({ items, ratio }: { items: Project[]; ratio: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const bp = useBreakpoint()
@@ -54,11 +54,11 @@ function SelectedWork({ items, ratio }: { items: Project[]; ratio: number }) {
         <div className="mb-7 flex items-end justify-between gap-6 sm:mb-10">
           <h2 className="font-display text-2xl font-medium uppercase tracking-[-0.02em] sm:text-4xl">Selected work</h2>
           <div className="hidden items-center gap-2 sm:flex">
-            <button onClick={() => go(-1)} aria-label="Scroll left" className="flex h-11 w-11 items-center justify-center rounded-full border border-black/15 transition hover:border-accent hover:text-accent"><ArrowLeft className="h-4 w-4" /></button>
-            <button onClick={() => go(1)} aria-label="Scroll right" className="flex h-11 w-11 items-center justify-center rounded-full border border-black/15 transition hover:border-accent hover:text-accent"><ArrowRight className="h-4 w-4" /></button>
+            <button onClick={() => go(-1)} aria-label="Scroll left" className="flex h-11 w-11 items-center justify-center rounded-full border border-black/15 transition-colors hover:border-accent hover:text-accent"><ArrowLeft className="h-4 w-4" /></button>
+            <button onClick={() => go(1)} aria-label="Scroll right" className="flex h-11 w-11 items-center justify-center rounded-full border border-black/15 transition-colors hover:border-accent hover:text-accent"><ArrowRight className="h-4 w-4" /></button>
           </div>
         </div>
-        <div ref={ref} className="-mr-[var(--gutter)] flex snap-x snap-mandatory items-start gap-3.5 overflow-x-auto pr-[var(--gutter)] sm:gap-5">
+        <div ref={ref} className="-mr-[var(--gutter)] flex snap-x snap-mandatory items-start gap-3.5 overflow-x-auto overflow-y-hidden overscroll-x-contain pr-[var(--gutter)] sm:gap-5">
           {items.map((p, i) => <div key={p.id} className="shrink-0 snap-start" style={width}><WorkTile p={p} ratio={ratio} priority={i < 4} /></div>)}
         </div>
       </div>
@@ -69,7 +69,7 @@ function SelectedWork({ items, ratio }: { items: Project[]; ratio: number }) {
 export default function Home() {
   useSeo({})
   const sections = useSections()
-  const featured = useAsync(async () => (await api.getProjects({ featured: true, pageSize: 12 })).data as Project[], [])
+  const featured = useCached<Project[]>('featured', loadFeatured)
   const hero = sections?.find((s) => s.key === 'hero')
   const ratio = parseRatio(sections?.find((s) => s.key === 'featured_work')?.config?.tile_ratio)
   const hasFeatured = !!featured.data?.length
@@ -86,4 +86,4 @@ export default function Home() {
       </section>
     </>
   )
-}
+    }
