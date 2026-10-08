@@ -78,3 +78,6 @@
   .public-site img, .public-site [style*="background-image"] { display: none !important; }
   .public-site::before { content: "Printing is disabled."; display: block; padding: 2rem; font-family: sans-serif; }
           }
+
+/* Typing must still work inside the search box (Safari blocks typing in user-select:none fields) */
+.public-site input, .public-site textarea { -webkit-user-select: text; user-select: text; }
