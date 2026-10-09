@@ -1,4 +1,11 @@
 {
-  "rewrites": [{ "source": "/((?!api/|assets/|robots.txt|sitemap.xml).*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/)[^.]*)",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(WhatsApp|whatsapp|facebookexternalhit|Facebot|Twitterbot|TelegramBot|LinkedInBot|Slackbot|Discordbot|Pinterest|SkypeUriPreview|Googlebot|bingbot|Applebot).*" }],
+      "destination": "/api/seo?path=/$1"
+    },
+    { "source": "/((?!api/|assets/|robots.txt|sitemap.xml).*)", "destination": "/index.html" }
+  ],
   "crons": [{ "path": "/api/keepalive", "schedule": "0 6 * * *" }]
 }
