@@ -82,3 +82,6 @@ export function rankProjects(items: Project[], query: string): Project[] {
   }
   return scored.sort((a, b) => b.s - a.s || Number(a.p.sort_order) - Number(b.p.sort_order)).map((x) => x.p)
    }
+
+/** Words that mean the same as `w` (used by the writer to match categories) */
+export const synonymsOf = (w: string): string[] => [...(SYN.get(w) ?? SYN.get(singular(w)) ?? [])]
