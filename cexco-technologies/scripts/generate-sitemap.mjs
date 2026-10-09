@@ -1,4 +1,3 @@
-```js
 // Generates public/sitemap.xml from published portfolio projects.
 
 import fs from 'node:fs'
@@ -104,4 +103,3 @@ fs.mkdirSync(outputDir, { recursive: true })
 fs.writeFileSync(outputFile, xml, 'utf8')
 
 console.log(`sitemap: successfully wrote ${urls.length} URLs to ${outputFile}`)
-```
