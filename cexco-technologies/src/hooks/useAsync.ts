@@ -10,17 +10,21 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T
   const [tick, setTick] = useState(0)
   const fnRef = useRef(fn)
   fnRef.current = fn
+  const silent = useRef(false)
 
   useEffect(() => {
     let live = true
-    setLoading(true); setError(null)
+    // A manual reload() keeps the current content on screen (no spinner), so the page does not jump back to the top
+    if (!silent.current) setLoading(true)
+    silent.current = false
+    setError(null)
     fnRef.current().then((d) => { if (live) { setData(d); setLoading(false) } })
       .catch((e: unknown) => { if (live) { setError(errMsg(e)); setLoading(false) } })
     return () => { live = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, tick])
 
-  const reload = useCallback(() => setTick((t) => t + 1), [])
+  const reload = useCallback(() => { silent.current = true; setTick((t) => t + 1) }, [])
   return { data, loading, error, reload, setData }
 }
 
@@ -28,4 +32,4 @@ export function useDebounced<T>(value: T, ms = 350): T {
   const [v, setV] = useState(value)
   useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t) }, [value, ms])
   return v
-}
+    }
