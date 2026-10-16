@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Play } from 'lucide-react'
 import { PlaceholderArt } from '@/components/ui'
-import { transformUrl } from '@/utils/image'
+import { isVideoUrl, transformUrl } from '@/utils/image'
 import { projectYear, type Project } from '@/utils/project'
 import { cn } from '@/utils/format'
 
@@ -13,9 +14,20 @@ export function useBreakpoint(): Bp {
   return bp
 }
 
+export function PlayBadge({ small }: { small?: boolean }) {
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <span className={cn('flex items-center justify-center rounded-full bg-white/90 text-ink shadow-lg', small ? 'h-10 w-10' : 'h-14 w-14')}>
+        <Play className={cn('translate-x-px fill-current', small ? 'h-4 w-4' : 'h-5 w-5')} />
+      </span>
+    </span>
+  )
+}
+
 /** One design card: every card uses the same shape (`ratio`), rounded corners, gentle reveal as it scrolls into view. */
 export function WorkTile({ p, ratio, index, priority }: { p: Project; ratio: number; index?: number; priority?: boolean }) {
   const full = p.cover_image_url
+  const video = isVideoUrl(full)
   const [src, setSrc] = useState(full ? transformUrl(full, 700) : null)
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -32,18 +44,20 @@ export function WorkTile({ p, ratio, index, priority }: { p: Project; ratio: num
   }, [seen])
 
   const meta = [p.category?.name, String(projectYear(p))].filter(Boolean).join('  ·  ')
+  const alt = `${p.title}${p.category ? ` — ${p.category.name} design` : ''}`
   return (
     <Link ref={ref} to={`/work/${p.slug}`} aria-label={p.title}
       className={cn('group block transition duration-700 ease-out', seen ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0')}>
       <div className="relative overflow-hidden rounded-[28px] bg-neutral-100" style={{ aspectRatio: String(ratio) }}>
         {src && !failed ? (
           <img
-            src={src} alt={p.title} loading={priority ? 'eager' : 'lazy'} decoding="async"
+            src={src} alt={alt} loading={priority ? 'eager' : 'lazy'} decoding="async"
             onLoad={() => setLoaded(true)}
-            onError={() => { if (full && src !== full) setSrc(full); else setFailed(true) }}
+            onError={() => { if (full && !video && src !== full) setSrc(full); else setFailed(true) }}
             className={cn('absolute inset-0 h-full w-full object-cover transition duration-[900ms] ease-out group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
           />
         ) : <PlaceholderArt seed={p.title} />}
+        {video && <PlayBadge small />}
       </div>
       <div className="mt-3 flex items-start gap-2.5 px-1">
         {index !== undefined && <span className="mt-[3px] font-display text-[11px] tabular-nums text-accent">{String(index + 1).padStart(2, '0')}</span>}
@@ -72,4 +86,4 @@ export function CatalogGrid({ items, ratio }: { items: Project[]; ratio: number 
       ))}
     </div>
   )
-              }
+}
