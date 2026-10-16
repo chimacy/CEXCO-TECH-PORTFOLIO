@@ -56,4 +56,30 @@ export function measureImage(url: string): Promise<number | null> {
     img.src = u
   })
   return probe(transformUrl(url, 700)).then((r) => r ?? probe(url))
-      }
+}
+
+export const isVideoUrl = (url: string | null | undefined): boolean => !!url && /\.(mp4|webm)(\?.*)?$/i.test(url)
+
+/** First-second frame of a video as a WebP image (used as its thumbnail), plus the video's shape. */
+export function videoPoster(file: File): Promise<{ poster: File; ratio: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const v = document.createElement('video')
+    let finished = false
+    const done = (r: { poster: File; ratio: number } | null) => { if (finished) return; finished = true; window.clearTimeout(timer); URL.revokeObjectURL(url); resolve(r) }
+    const timer = window.setTimeout(() => done(null), 12000)
+    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url
+    v.onloadedmetadata = () => { v.currentTime = Math.min(1, (v.duration || 1) * 0.1) }
+    v.onerror = () => done(null)
+    v.onseeked = () => {
+      try {
+        const w = v.videoWidth, h = v.videoHeight
+        if (!w || !h) return done(null)
+        const scale = Math.min(1, 1280 / Math.max(w, h))
+        const c = document.createElement('canvas'); c.width = Math.round(w * scale); c.height = Math.round(h * scale)
+        c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height)
+        c.toBlob((b) => done(b ? { poster: new File([b], 'poster.webp', { type: 'image/webp' }), ratio: Math.round((w / h) * 1000) / 1000 } : null), 'image/webp', 0.85)
+      } catch { done(null) }
+    }
+  })
+}
