@@ -22,7 +22,7 @@ export default function MediaLibrary() {
   const rows = (data ?? []).filter((m) => !q.trim() || m.file_name.toLowerCase().includes(q.trim().toLowerCase()))
 
   const uploadFiles = useCallback(async (files: File[]) => {
-    const images = files.filter((f) => f.type.startsWith('image/'))
+    const images = files.filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'))
     if (!images.length) { toast.error('No image found to upload.'); return }
     setProgress({ done: 0, total: images.length })
     let ok = 0
@@ -70,7 +70,7 @@ export default function MediaLibrary() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="font-display text-2xl font-bold sm:text-3xl">Media Library</h1>
         <button className="btn btn-primary" onClick={() => ref.current?.click()} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload images</button>
-        <input ref={ref} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { void uploadFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} /></div>
+        <input ref={ref} type="file" multiple accept="image/*,video/mp4,video/webm" className="sr-only" onChange={(e) => { void uploadFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} /></div>
 
       <div onDragOver={(e) => { e.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={onDrop}
         className={`mb-5 flex flex-col items-center rounded-2xl border-2 border-dashed px-4 py-7 text-center transition ${dragging ? 'border-accent bg-accent/5' : 'border-black/15 bg-white'}`}>
@@ -80,7 +80,7 @@ export default function MediaLibrary() {
           <>
             <ClipboardPaste className="mb-2 h-6 w-6 text-black/40" aria-hidden />
             <p className="text-sm font-medium">Copy a design, then press <kbd className="rounded border border-black/20 bg-black/5 px-1.5 py-0.5 text-xs">Ctrl</kbd> + <kbd className="rounded border border-black/20 bg-black/5 px-1.5 py-0.5 text-xs">V</kbd> on this page</p>
-            <p className="mt-1 text-xs text-black/50">Mac: ⌘ + V. You can also drag and drop images here, or use the Upload button.</p>
+            <p className="mt-1 text-xs text-black/50">Mac: ⌘ + V. You can also drag and drop images or MP4 / WebM videos (up to 50 MB) here, or use the Upload button.</p>
           </>
         )}
       </div>
