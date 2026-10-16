@@ -23,7 +23,7 @@ export function MediaPicker({ open, onClose, onPick }: { open: boolean; onClose:
       <input ref={ref} type="file" accept="image/*" className="sr-only" onChange={(e) => void upload(e.target.files)} />
       {loading ? <p className="py-8 text-center text-sm text-black/50">Loading images…</p> : !data?.length ? <p className="py-8 text-center text-sm text-black/50">No images yet. Upload one above.</p> :
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {data.map((m) => <button key={m.id} onClick={() => { onPick(m.url); onClose() }} className="aspect-square overflow-hidden rounded-xl bg-black/5 ring-ink hover:ring-2"><Img src={m.url} alt={m.file_name} width={300} /></button>)}
+          {data.filter((m) => !m.mime_type?.startsWith('video/')).map((m) => <button key={m.id} onClick={() => { onPick(m.url); onClose() }} className="aspect-square overflow-hidden rounded-xl bg-black/5 ring-ink hover:ring-2"><Img src={m.url} alt={m.file_name} width={300} /></button>)}
         </div>}
     </Modal>
   )
