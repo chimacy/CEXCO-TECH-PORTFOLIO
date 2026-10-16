@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { compressImage, makeMedium, makeThumbnail, MEDIUM_SUFFIX, THUMB_SUFFIX } from '@/utils/image'
+import { compressImage, makeMedium, makeThumbnail, MEDIUM_SUFFIX, THUMB_SUFFIX, videoPoster } from '@/utils/image'
 import type { MediaItem } from '@/types'
 
 export type Row = Record<string, unknown> & { id: string }
@@ -29,18 +29,24 @@ export async function countRows(table: string, filter?: (q: ReturnType<ReturnTyp
 
 export const MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
 export const MEDIA_MAX = 10 * 1024 * 1024
+export const VIDEO_TYPES = ['video/mp4', 'video/webm']
+export const VIDEO_MAX = 50 * 1024 * 1024
 
 export async function uploadMedia(original: File, folder = 'uploads'): Promise<MediaItem> {
-  if (!MEDIA_TYPES.includes(original.type)) throw new Error(`${original.name}: only JPG, PNG, WEBP, GIF or AVIF images are allowed.`)
-  const file = await compressImage(original)
-  if (file.size > MEDIA_MAX) throw new Error(`${original.name} is larger than 10 MB.`)
+  const isVideo = VIDEO_TYPES.includes(original.type)
+  if (!isVideo && !MEDIA_TYPES.includes(original.type)) throw new Error(`${original.name}: use JPG, PNG, WEBP, GIF or AVIF images, or MP4 / WebM videos (iPhone .mov files must be converted to MP4 first).`)
+  if (isVideo && original.size > VIDEO_MAX) throw new Error(`${original.name} is larger than 50 MB. Compress it first (1080p and under 30 seconds works well).`)
+  const file = isVideo ? original : await compressImage(original)
+  if (!isVideo && file.size > MEDIA_MAX) throw new Error(`${original.name} is larger than 10 MB.`)
   const d = new Date()
   const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-80)
   const path = `${folder}/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}-${safe}`
   const up = await supabase.storage.from('media').upload(path, file, { contentType: file.type, cacheControl: '31536000' })
   if (up.error) throw new Error(up.error.message)
   // Smaller variants are best-effort: if they fail, grids simply fall back to the full image.
-  const [thumb, medium] = await Promise.all([makeThumbnail(file), makeMedium(file)])
+  // For a video the thumbnails are made from its first frame
+  const still = isVideo ? (await videoPoster(original))?.poster ?? null : file
+  const [thumb, medium] = still ? await Promise.all([makeThumbnail(still), makeMedium(still)]) : [null, null]
   if (thumb) await supabase.storage.from('media').upload(`${path}${THUMB_SUFFIX}`, thumb, { contentType: 'image/webp', cacheControl: '31536000' })
   if (medium) await supabase.storage.from('media').upload(`${path}${MEDIUM_SUFFIX}`, medium, { contentType: 'image/webp', cacheControl: '31536000' })
   const url = supabase.storage.from('media').getPublicUrl(path).data.publicUrl
@@ -63,4 +69,4 @@ export async function signedRequestFileUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from('request-files').createSignedUrl(path, 600)
   if (error || !data) throw new Error(error?.message ?? 'Could not create link')
   return data.signedUrl
-                                                         }
+}
