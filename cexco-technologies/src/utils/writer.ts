@@ -108,4 +108,4 @@ export function writeFor(title: string, categories: { id: string; name: string }
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score)
 
   return { short, description, primary: scored[0]?.id, secondary: scored[1] && scored[1].score >= 2 ? scored[1].id : undefined }
-            }
+}
