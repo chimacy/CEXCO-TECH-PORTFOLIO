@@ -15,7 +15,8 @@ const Media = lazy(() => import('@/pages/admin/Media'))
 const SettingsPage = lazy(() => import('@/pages/admin/Settings'))
 const HomeEditor = lazy(() => import('@/pages/admin/HomeEditor'))
 const PortfolioList = lazy(() => import('@/pages/admin/Portfolio').then((m) => ({ default: m.PortfolioList })))
-const PortfolioEditor = lazy(() => import('@/pages/admin/Portfolio').then((m) => ({ default: m.PortfolioEditor })))
+const PortfolioEditor = lazy(() => import('@/pages/admin/PortfolioEditor'))
+const Security = lazy(() => import('@/pages/admin/Security'))
 const CategoriesAdmin = lazy(() => import('@/pages/admin/Content').then((m) => ({ default: m.CategoriesAdmin })))
 
 function SuperOnly({ children }: { children: JSX.Element }) {
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="media" element={<Media />} />
           <Route path="homepage" element={<SuperOnly><HomeEditor /></SuperOnly>} />
           <Route path="settings" element={<SuperOnly><SettingsPage /></SuperOnly>} />
+          <Route path="security" element={<Security />} />
         </Route>
         <Route element={<PublicLayout />}>
           <Route index element={<Home />} />
