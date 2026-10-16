@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Loader2, FolderTree, Home, Image as ImageIcon, ImagePlus, LayoutDashboard, LogOut, Menu, Plus, Settings, X } from 'lucide-react'
+import { ArrowLeft, Loader2, FolderTree, Home, Image as ImageIcon, ImagePlus, LayoutDashboard, LogOut, Menu, Plus, Settings, ShieldCheck, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useSettings } from '@/lib/settings'
 import { Modal, Spinner } from '@/components/ui'
@@ -14,11 +14,12 @@ const GROUPS: { title?: string; items: Item[] }[] = [
     { to: '/admin/categories', label: 'Categories', icon: FolderTree }] },
   { title: 'Site', items: [
     { to: '/admin/homepage', label: 'Homepage', icon: Home, superOnly: true },
-    { to: '/admin/media', label: 'Media Library', icon: ImagePlus }, { to: '/admin/settings', label: 'Settings', icon: Settings, superOnly: true }] },
+    { to: '/admin/media', label: 'Media Library', icon: ImagePlus }, { to: '/admin/settings', label: 'Settings', icon: Settings, superOnly: true },
+    { to: '/admin/security', label: 'Security', icon: ShieldCheck }] },
 ]
 
 export default function AdminLayout() {
-  const { session, role, loading, signOut, isSuperAdmin } = useAuth()
+  const { session, role, loading, signOut, isSuperAdmin, needsMfa } = useAuth()
   const { settings } = useSettings()
   const [open, setOpen] = useState(false)
   const [confirmOut, setConfirmOut] = useState(false)
@@ -27,9 +28,14 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   useEffect(() => setOpen(false), [loc.pathname, loc.search])
   useEffect(() => { document.title = `Admin | ${settings?.brand_name ?? ''}` }, [settings?.brand_name])
+  useEffect(() => { // keep the admin out of search engines
+    const m = document.createElement('meta'); m.name = 'robots'; m.content = 'noindex, nofollow'; document.head.appendChild(m)
+    return () => { m.remove() }
+  }, [])
 
   if (loading) return <Spinner className="min-h-screen" />
   if (!session) return <Navigate to="/admin/login" replace state={{ from: loc.pathname }} />
+  if (needsMfa) return <Navigate to="/admin/login" replace state={{ from: loc.pathname }} />
   if (!role) return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
       <h1 className="font-display text-2xl font-bold">No admin access</h1>
@@ -93,4 +99,4 @@ export default function AdminLayout() {
       </Modal>
     </div>
   )
-  }
+}
