@@ -30,8 +30,9 @@ export default async function handler(req, res) {
 
   const m = /^\/(?:work|portfolio)\/([^/?#]+)/.exec(path)
   if (m) {
-    const slug = encodeURIComponent(decodeURIComponent(m[1]))
-    const [p] = await get(`portfolio_projects?select=title,short_description,description,cover_image_url&slug=eq.${slug}&status=eq.published&limit=1`)
+    let slug = ''
+    try { slug = encodeURIComponent(decodeURIComponent(m[1])) } catch { slug = '' }
+    const [p] = slug ? await get(`portfolio_projects?select=title,short_description,description,cover_image_url&slug=eq.${slug}&status=eq.published&limit=1`) : []
     if (p) {
       title = `${p.title} | ${brand}`
       desc = p.short_description || clip(p.description, 160) || desc
@@ -41,6 +42,7 @@ export default async function handler(req, res) {
       type = 'article'
     }
   }
+  if (/\.(mp4|webm)(\?.*)?$/i.test(image)) image = `${image}.md.webp` // videos use their poster frame
   desc = clip(desc, 200)
   const ogImage = image ? `${origin}/api/og-image?src=${encodeURIComponent(image)}&fit=${fit}` : ''
 
@@ -73,4 +75,4 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600')
   res.status(200).send(html)
-                          }
+}
