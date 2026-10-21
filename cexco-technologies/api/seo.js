@@ -66,7 +66,10 @@ export default async function handler(req, res) {
   ].filter(Boolean).join('\n    ')
 
   let html = ''
-  try { const r = await fetch(`${origin}/index.html`); if (r.ok) html = await r.text() } catch { /* fall back below */ }
+   for (const file of ['app.html', 'index.html']) {
+    try { const r = await fetch(`${origin}/${file}`); if (r.ok) { html = await r.text(); break } } catch { /* try the next one */ }
+   }
+  
   if (html.includes('</head>')) {
     html = html.replace(/<title>[\s\S]*?<\/title>/i, '').replace(/<meta\s+name="description"[^>]*>/i, '').replace('</head>', `    ${tags}\n  </head>`)
   } else {
