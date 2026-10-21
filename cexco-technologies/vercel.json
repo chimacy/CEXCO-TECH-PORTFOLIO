@@ -5,7 +5,7 @@
       "has": [{ "type": "header", "key": "user-agent", "value": ".*(WhatsApp|whatsapp|facebookexternalhit|Facebot|Twitterbot|TelegramBot|LinkedInBot|Slackbot|Discordbot|Pinterest|SkypeUriPreview|Googlebot|bingbot|Applebot).*" }],
       "destination": "/api/seo?path=/$1"
     },
-    { "source": "/((?!api/|assets/|robots.txt|sitemap.xml).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/|robots.txt|sitemap.xml).*)", "destination": "/app.html" }
   ],
   "headers": [
     {
